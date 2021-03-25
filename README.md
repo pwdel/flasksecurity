@@ -40,6 +40,18 @@ Flask-Principal seems to be even more deprecated than Flask-Security, so the sam
 
 [Flask Security Too docs](https://flask-security-too.readthedocs.io/en/stable/) show that Flask-Security Too is an attempt to keep the flask-Security projet going.
 
+Features within Flask-Security-Too include:
+
+
+* Flask-Login
+* Flask-Mail
+    Flask-Principal
+    Flask-WTF
+    itsdangerous
+    passlib
+    PyQRCode
+
+
 ### Flask-Unchained
 
 [Flask-Unchained Docs](https://flask-unchained.readthedocs.io/en/latest/index.html) show that Unchained is basically a very light version of Django but in Flask form, hence the name, "Unchained."  However, Django includes all different sorts of bundles, while the bundles which are included in Unchained appear to be:
