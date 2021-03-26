@@ -140,13 +140,66 @@ There is an [Unchained tutorial](https://flask-unchained.readthedocs.io/en/lates
 
 ### Breaking Down Important Components
 
-* [Python Decorators](https://wiki.python.org/moin/PythonDecorators)
+* [Python Decorators](https://realpython.com/primer-on-python-decorators/).
+
+Basically, decorators can envelope or call a function, they have a special way of being called, and can perform actions previous to and after a function in sequence.  They are designed to be easily reused.  This article goes into all sorts of common examples of how functions are used and how to use decorators with them. For example, how to use a decorator which performs a function twice, when only one argument is passed into a function.  There are all sorts of applications for decorators, including timing functions, debugging code, slowing down code, registering plugins, changing function behavior, checking for logins, etc.
 
 * [Python Context Managers](https://docs.python.org/3/library/stdtypes.html#context-manager-types)
 
 * [Signal Set Handlers for Asynchronous Events](https://docs.python.org/3/library/signal.html)
 
+### How to Implement Flask Principal
 
+Set up permissions within the app context as shown:
+
+```
+from flask.ext.principal import Principal, Permission, RoleNeed
+
+# calling Flask Principal
+principals = Principal(app)
+
+# setting up a sponsor role
+sponsor_role = RoleNeed('sponsor')
+
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+
+whatever._init_app(app)
+
+```
+After this you can use a decorator to protect a route, such as "/" with a decorator:
+
+```
+# perform decorator action, give Forbidden response if not passed
+@sponsor_permission.require(http_exception=403)
+```
+
+For example:
+
+```
+@app.route('/sponsor/dashboard/')
+@sponsor_permission.require(http_exception=403)
+
+```
+
+Alternatively:
+
+```
+@app.route('/sponsor/dashboard/')
+def dashboard():
+	with sponsor_permission.require(http_exception=403)
+
+```
+
+
+If we don't have a 403 error handler, you can create it with:
+
+```
+@app.errorhandler(403)
+def page_not_found(e):
+    session['redirected_from'] = request.url
+    return redirect(url_for('login'))
+```
 
 ## Flask Admin
 
