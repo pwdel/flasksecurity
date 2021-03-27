@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  web:
+    image: userlevels_flask
+    container_name: flask
+    build: 
+      context: ./services/web
+      dockerfile: Dockerfile.prod
+    command: gunicorn --bind 0.0.0.0:$PORT manage:app
+    environment:
+      - FLASK_APP=project/__init__.py
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://userlevels_flask:userlevels_flask@db:5432/userlevels_flask_prod
+      - SQL_HOST=db
+      - SQL_PORT=5432
+      - DATABASE=postgres
+    depends_on:
+      - db
+  db:
+    image: postgres:13-alpine
+    container_name: db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=userlevels_flask
+      - POSTGRES_PASSWORD=userlevels_flask
+      - POSTGRES_DB=userlevels_flask_prod
+
+volumes:
+  postgres_data:

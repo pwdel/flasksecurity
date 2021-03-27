@@ -1,0 +1,81 @@
+{% extends "layout.jinja2" %}
+
+{% block content %}
+  <div>
+
+    <div class="logo">
+      <img
+        src="{{ url_for('static', filename='img/linguo.jpg') }}"
+        alt="logo"
+      />
+    </div>
+
+    <h1>Create New Document</h1>
+
+  </div>
+
+  <div>
+
+    <p><h4>Create a New Document Below</h4></p>
+
+    <hr>
+
+    <div class="form-wrapper">
+
+      <form method="POST" action="">
+        {{ form.csrf_token }}
+        {{ form.name }}
+        <fieldset class="document_name">
+          {{ form.document_name.label }}
+          {{ form.document_name(placeholder='Document Name') }}
+          {% if form.document_name.errors %}
+            <ul class="errors">
+              {% for error in form.document_name.errors %}
+                <li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </fieldset>
+
+      <p></p>
+
+
+      <fieldset class="document_body">
+        {{ form.document_body.label }}
+        {{ form.document_body(placeholder='Document Body Content', size=100) }}
+        {% if form.document_body.errors %}
+          <ul class="errors">
+            {% for error in form.document_body.errors %}
+              <li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </fieldset>
+
+
+      <p></p>
+
+      Editor Choice 
+      {{ form.editorchoice }}
+
+      <p></p>
+
+      <div class="submit-button">
+         {{ form.submit }}
+      </div>
+
+      </form>
+
+  </div>
+
+  <p></p>
+
+  <div>
+    <a href="{{ url_for('sponsor_bp.documentlist_sponsor') }}">List of Documents</a>
+  </div>
+
+  <p></p>
+
+  <div>
+    <a href="{{ url_for('sponsor_bp.dashboard_sponsor') }}">Back to Sponsor Dashboard</a>
+  </div>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "layout.jinja2" %}
+
+
+{% block content %}
+  <div class="form-wrapper">
+
+    <div class="logo">
+      <img
+        src="{{ url_for('static', filename='img/linguo.jpg') }}"
+        alt="logo"
+      />
+    </div>
+
+    {% for message in get_flashed_messages() %}
+      <div class="alert alert-warning">
+        <button
+          type="button"
+          class="close"
+          data-dismiss="alert">
+            x
+          </button>
+        {{ message }}
+      </div>
+    {% endfor %}
+
+    <h1>Log In</h1>
+
+    <form method="POST" action="/login">
+
+      {{ form.csrf_token }}
+
+      <fieldset class="email">
+        {{ form.email.label }}
+        {{ form.email(placeholder='youremail@example.com') }}
+        {% if form.email.errors %}
+          <ul class="errors">
+            {% for error in form.email.errors %}
+              <li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </fieldset>
+
+      <fieldset class="password">
+        {{ form.password.label }}
+        {{ form.password }}
+        {% if form.email.errors %}
+          <ul class="errors">
+            {% for error in form.password.errors %}
+              <li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </fieldset>
+
+      <div class="submit-button">
+        {{ form.submit }}
+      </div>
+
+    </form>
+
+      <div class="login-signup">
+        <p></p>
+        <span>Don't have an account?</span>
+        <p></p>
+        <a href="{{ url_for('sponsor_bp.signupsponsor') }}">Sign Up as a Sponsor</a>
+        <p></p>
+        <a href="{{ url_for('editor_bp.signupeditor') }}">Sign Up as an Editor</a>
+        <p></p>
+      </div>
+
+  </div>
+
+{% endblock %}

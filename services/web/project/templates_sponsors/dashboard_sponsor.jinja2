@@ -1,0 +1,36 @@
+{% extends "layout.jinja2" %}
+
+{% block content %}
+  <div class="form-wrapper">
+
+    <div class="logo">
+      <img
+        src="{{ url_for('static', filename='img/linguo.jpg') }}"
+        alt="logo"
+      />
+    </div>
+
+    <h1>Sponsor Dashboard</h1>
+
+    <p>This is the sponsor dashboard.</p>
+
+  <p></p>
+  </div>
+    <a href="{{ url_for('sponsor_bp.newdocument_sponsor') }}">Create New Document.</a>
+  </div>
+
+  <p></p>
+
+  </div>
+    <a href="{{ url_for('sponsor_bp.documentlist_sponsor') }}">List of Documents</a>
+  </div>
+
+  <p></p>
+
+  <div>
+    </div>
+      <a href="{{ url_for('sponsor_bp.logoutsponsor') }}">Log Out.</a>
+    </div>
+  <div>
+
+{% endblock %}

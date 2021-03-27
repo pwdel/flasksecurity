@@ -15,6 +15,14 @@ After having completed the [User Level Models Flask](https://github.com/pwdel/us
 * Different login functionality that works for different parts and pages of the site
 * Basically overall guard expensive server resources while still allowing access to the platform
 
+## Note on Previous Work
+
+When referring to, "past projects" or "previous work" on this document, I am likely referring to these projects:
+
+* [Usermodels Flask](https://github.com/pwdel/userlevelmodelsflask)
+* [Postgres Login API with Heroku/Docker/Flask](https://github.com/pwdel/postgresloginapiherokudockerflask)
+* [Heroku/Docker/Flask](https://github.com/pwdel/herokudockerflask)
+
 ## Plan of Attack
 
 0. Review Flask overall architecture (written above, in the comparison of Django vs. Flask).
@@ -190,7 +198,6 @@ def dashboard():
 	with sponsor_permission.require(http_exception=403)
 
 ```
-
 
 If we don't have a 403 error handler, you can create it with:
 
@@ -442,6 +449,7 @@ Other Ideas:
 
 ## References
 
+* [Demystifying Flask Principal](https://jupyterdata.medium.com/a-shot-at-demystifying-flask-principal-dda5aaeb6bc6)
 * [Securing Flask Web Applications](https://smirnov-am.github.io/securing-flask-web-applications/)
 * [Flask Security Considerations](https://flask.palletsprojects.com/en/1.1.x/security/)
 * [Django vs Flask](https://testdriven.io/blog/django-vs-flask/)

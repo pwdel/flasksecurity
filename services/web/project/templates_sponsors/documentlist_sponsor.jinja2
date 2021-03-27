@@ -1,0 +1,69 @@
+{% extends "layout.jinja2" %}
+
+{% block content %}
+  <div class="form-wrapper">
+
+    <div class="logo">
+      <img
+        src="{{ url_for('static', filename='img/linguo.jpg') }}"
+        alt="logo"
+      />
+    </div>
+
+    <h1>Documents List</h1>
+
+    <p>This is the list of your documents.</p>
+
+  <p></p>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 100px">
+    <col style="width: 200px">
+    <col style="width: 350px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">Editor</th>
+        <th class="tg-73oq">Document Name</th>
+        <th class="tg-73oq">Document Body</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for document in documents %}
+      <tr>
+        <td class="tg-73oq">{{ document.name }}</td>
+        <td class="tg-73oq">
+          <a href="{{ url_for('sponsor_bp.documentedit_sponsor', document_id=document.document_id) }}">{{ document.document_name }}</a>
+        </td>
+        <td class="tg-73oq">{{ document.document_body }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+
+  <p></p>
+
+  </div>
+    <a href="{{ url_for('sponsor_bp.newdocument_sponsor') }}">Create a New Document</a>
+  </div>
+
+  <p></p>
+
+  </div>
+    <a href="{{ url_for('sponsor_bp.dashboard_sponsor') }}">Back to Sponsor Dashboard</a>
+  </div>
+
+
+{% endblock %}
