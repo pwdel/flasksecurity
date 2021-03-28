@@ -367,7 +367,32 @@ class User(UserMixin):
 
 There is significant documentation within the [Flask Principal Github](https://github.com/mattupstate/flask-principal/blob/master/flask_principal.py), within the flask_principal.py file, in the form of comments.  It may be even easier to look at this documentation and read through it rather than a tutorial.
 
-#### Flask-Principal Documentation - identity_changed on Login
+Blinker was inspired by the Django signal API.
+
+* [connect_via](https://github.com/jek/blinker/blob/b5e9f0629200d2b2f62e13e595b802948bb4fefb/blinker/base.py#L160) is a part of blinker which connects the decorated function as a receiver for *sender*.
+
+Within blinker you can, among objects:
+
+* Subscribe to signals
+* Emit signals, send()
+* Subscribe to specific senders
+* Send and recieve data through signals
+* Use annonymous signals
+* Connect as a decorator
+* Optimize Signals
+* Use an API
+
+
+
+#### Review of Blinker
+
+[Blinker](https://pythonhosted.org/blinker/) is a python module which provides fast & simple object-to-object and broadcast signaling for Python objects.  Blinker is used to build flask_principal.
+
+The source code for [Blinker can be found here](https://github.com/jek/blinker).
+
+
+
+#### Flask-Principal Documentation - identity_changed on Login for Sponsor
 
 Signal sent when the identify for a request has been changed.
 
@@ -493,9 +518,239 @@ if user.user_type=='sponsor':
 ```
 Which should activate if the user.user_type is indeed sponsor.
 
+
+##### provides=set()
+
+What does provides=set() mean?
+
+Within the [flask-principal github source code](https://github.com/mattupstate/flask-principal/blob/0b5cd06b464ae8b60939857784bda86c03dda1eb/flask_principal.py#L142), we see the lines of code:
+
+```
+    def __init__(self, id, auth_type=None):
+        self.id = id
+        self.auth_type = auth_type
+        self.provides = set()
+```
+
+And within the commentary, it says:
+
+>     Needs that are provided by this identity should be added to the `provides` set after loading.
+
+Basically, self.provides is set as being equal to set(), which is a set object, an unordered list of items. What's in that set? It appears to be the tuple including, "id" and "auth."
+
+
+#### Flask-Principal Documentation - identity_changed on Login for Editor
+
+Basically, we can provide the above logic above the editor/sponsor conditional login, because it applies to either user type.
+
+Once we do this and test by logging in as an editor, we get:
+
+```
+flask  | Sent:  <Identity id="2" auth_type="editor" provides=set()>  ...to current_app
+```
+
 #### Flask-Principal Documentation - identity_changed on Signup
 
 Now that identity_changed has been successfully implemented within the login, it needs to also be implemented on signup.
+
+We have two places for this:
+
+@sponsor_bp.route('/signupsponsor', methods=['GET', 'POST'])
+
+and
+
+@editor_bp.route('/signupeditor', methods=['GET', 'POST'])
+
+The same code used for /signin can be used for /signup, it goes after the, "login_user" function.
+
+#### Flask-Principal Documentation - identity_changed  to AnnonymousIdentity on Logout
+
+In our application, logouts for each user type exist within the routes.py individual user types.  For example:
+
+```
+from flask import g, current_app, abort, request
+# for identifitaction and permission management
+from flask_principal import Identity, identity_changed
+# for printing system messages
+import sys
+
+...
+
+@sponsor_bp.route("/sponsor/logout")
+@login_required
+def logoutsponsor():
+    """User log-out logic."""
+    logout_user()
+    return redirect(url_for('auth_bp.login'))
+```
+For taking away the identity policy, we just have to put the following logic right before, "logout_user()" - this is because there has to be an existing user in order to take a policy away from it.
+
+```
+    # Tell Flask-Principal the user is anonymous
+    identity_changed.send(current_app._get_current_object(),
+                          identity=AnonymousIdentity())
+```
+
+Once we do this and print to the console, we get:
+
+```
+flask  | Sent:  <AnonymousIdentity id="None" auth_type="None" provides=set()>  ...to current_app
+```
+
+#### Flask-Principal Documentation - identity_loaded
+
+> User information providers should connect to the identity-loaded signal to add any additional information to the Identity instance such as roles. 
+
+Basically, this is required for more grandular resource protection, for example - allowing a user to only edit and view their own document or article, rather than any document or article across the entire system.
+
+We have to 1. Populate the identity object with the necessary authorization provisions. 2. Load any additional information.
+
+After the identiy is loaded, flask_principal can use IdentityContext to compare the Identity to the Permission, which holds a set of Needs, and grant access if the Identity's attributes pass the logic of Permission according to what is stored in Needs.
+
+The following would go in our __init__.py file:
+
+```
+from flask_principal import identity_loaded, RoleNeed, UserNeed
+
+...
+
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    identity.user = current_user
+
+    # Add the UserNeed to the identity
+    if hasattr(current_user, 'id'):
+    	# specifically, need to have current_user.id
+        identity.provides.add(UserNeed(current_user.id))
+
+    # Assuming the User model has a user_type, update the
+    # identity with the user_type that the user provides
+    if hasattr(current_user, 'user_type'):
+        for role in current_user.user_type
+            identity.provides.add(RoleNeed(role.name))
+
+```
+
+* "hasattr" is a python function that looks at a class, for its attributes and returns true/false based upon whether that class has the attribute.
+
+
+
+
+#### Flask-Principal Documentation - Need
+
+Needs and Permissions have to be loaded up based upon user role.
+
+[From the source code](https://github.com/mattupstate/flask-principal/blob/0b5cd06b464ae8b60939857784bda86c03dda1eb/flask_principal.py#L79) -
+
+```
+Need = namedtuple('Need', ['method', 'value'])
+```
+
+> This is just a named tuple, and practically any tuple will do. The ``method`` attribute can be used to look up element 0, and the ``value`` attribute can be used to look up element 1.
+
+So basically, it's a tuple that is labeled, "Need" with a "method" and a "value."  The method could be id, role or perhaps something else - role, type, or action. The value could be the id's value, or the actual role value, action, type, item etc.  It's basically a flexible way of holding values for roles, id's and other important attributes...it's a way of recording the "needs."
+
+We can create a principal.py file in which we organize various permissions and needs.
+
+```
+from collections import namedtuple
+from functools import partial
+
+from flask_login import current_user
+from flask_principal import identity_loaded, Permission, RoleNeed, UserNeed
+
+BlogPostNeed = namedtuple('blog_post', ['method', 'value'])
+EditBlogPostNeed = partial(BlogPostNeed, 'edit')
+
+class EditBlogPostPermission(Permission):
+    def __init__(self, post_id):
+        need = EditBlogPostNeed(unicode(post_id))
+        super(EditBlogPostPermission, self).__init__(need)
+```
+
+
+##### UserNeed
+
+> A need with the method preset to `"id"`.
+
+```
+UserNeed = partial(Need, 'id')
+UserNeed.__doc__ = 
+```
+
+##### RoleNeed
+
+> A need with the method preset to "role"
+
+##### TypeNeed
+
+> A need with the method preset to "type"
+
+##### ActionNeed
+
+> A need with the method preset to "action"
+
+#### Flask-Principal Documentation - ItemNeed
+
+> An item need is just a named tuple, and practically any tuple will do. In addition to other Needs, there is a type, for example this could be specified as:
+
+>    ItemNeed('update', 27, 'posts')
+>    ('update', 27, 'posts') # or like this
+
+> And that might describe the permission to update a particular blog post. In reality, the developer is free to choose whatever convention the permissions are.
+
+#### Flask-Principal Documentation - Identity
+
+class Identity(object):
+
+>    The identity is used to represent the user's identity in the system. This object is created on login, or on the start of the request as loaded from the user's session. Once loaded it is sent using the `identity-loaded` signal, and should be populated with additional required information. Needs that are provided by this identity should be added to the `provides` set after loading.
+
+#### Flask-Principal Documentation - IdentityContext
+
+> The principal behaves as either a context manager or a decorator. The permission is checked for provision in the identity, and if available the flow is continued (context manager) or the function is executed (decorator).
+
+
+```
+    def identity(self):
+        """The identity of this principal
+        """
+        return g.identity
+
+    def can(self):
+        """Whether the identity has access to the permission
+        """
+        return self.identity.can(self.permission)
+```
+
+Basically, IdentityContext takes the Identity, compares it to the Permission, which contains Needs, and if the appropriate Needs are found within the logic of Permission, access is granted.
+
+#### Flask-Principal Documentation - Permission
+
+Permission(object)
+
+> Represents needs, any of which must be present to access a resource ... :param needs: The needs for this permission. 
+
+Has several functions within the Permission class that allows processing of the object.  This is basically the, "logic function" of flask_principal.
+
+* __init__(self,* needs) - a set of needs which must be present. Recall that needs are simply tuples which contain id, role, type or action and the value associated.
+* _bool_(self) - just a boolean true/false, settable
+* __nonzero__(self) - 
+* __and__(self,other) - allows a union of itself and other
+* __or__(self,other) - allows difference of itself and other
+* __contains__(self, other) - allows checking if something is a subset of another
+* __repr__(self) - performs the action specified by the above
+* require(self,http_exception) - allows usage as a context manager or a decorator.  Raises permission denied if permission not present.
+* test(self,http_exception) - does the same as require but just puts up a flag rather than running permission denied. Is useful for checking rather than performing.
+* reverse(self) - returns the reverse of the current state.
+* Also includes - union, difference, subset, allows.
+
+#### Flask-Principal Documentation - Denial
+
+Shortcut for not allowing permission.
+
+#### Flask-Principal Documentation - Principal
+
 
 
 #### Going Back And Fixing User_Type Logic for Login
@@ -514,42 +769,6 @@ The following logic appears not to work. This appears to be something we could d
 ```
 
 This code fix could be back-populated into our previous project to ensure workability.
-
-
-#### Flask-Principal Documentation - identity_loaded
-
-
-#### Flask-Principal Documentation - Need
-
-#### Flask-Principal Documentation - UserNeed
-
-#### Flask-Principal Documentation - RoleNeed
-
-#### Flask-Principal Documentation - TypeNeed
-
-#### Flask-Principal Documentation - ActionNeed
-
-#### Flask-Principal Documentation - ItemNeed
-
-#### Flask-Principal Documentation - Identity
-
-class Identity(object):
-
->    The identity is used to represent the user's identity in the system. This object is created on login, or on the start of the request as loaded from the user's session. Once loaded it is sent using the `identity-loaded` signal, and should be populated with additional required information. Needs that are provided by this identity should be added to the `provides` set after loading.
-
-
-#### Flask-Principal Documentation - AnnonymousIdentity
-
-#### Flask-Principal Documentation - IdentityContext
-
-The principal behaves as either a context manager or a decorator. The permission is checked for provision in the identity, and if available the flow is continued (context manager) or the function is executed (decorator).
-
-#### Flask-Principal Documentation - Permission
-
-#### Flask-Principal Documentation - Denial
-
-#### Flask-Principal Documentation - Principal
-
 
 
 

@@ -9,7 +9,7 @@ from flask_assets import Environment, Bundle
 # import compile assets from assets.py
 from .assets import compile_static_assets
 # Importing Flask Principal
-from flask_principal import Principal, Permission, RoleNeed
+from flask_principal import Principal
 
 port = int(os.environ.get("PORT", 5000))
 
@@ -20,10 +20,6 @@ login_manager = LoginManager()
 
 # setup Flask Principal
 principals = Principal()
-# setting up a sponsor role from Flask Principal
-sponsor_role = RoleNeed('sponsor')
-# setting up a sponsor permission
-sponsor_permission = Permission(sponsor_role)
 
 
 def create_app():
@@ -75,6 +71,8 @@ def create_app():
 # Physically create the app now
 app = create_app()
 
+
+# create shell context processor
 from .models import db, Document, User, Retention
 # python shell context processor
 @app.shell_context_processor

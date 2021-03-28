@@ -47,21 +47,23 @@ def login():
             login_user(user)
              # send to next page
             next_page = request.args.get('next')
+
+            # user should already have a type since they logged-in in the past
+            # use identity_changed to send signal to flask_principal showing identity, user_type
+            identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
+            # placing identity_object into variable for print/display
+            identity_object = Identity(user.id,user.user_type)
+            # printing identity_object to console for verification
+            print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+
             # check user type, if sponsor go to sponsor dashboard
+
             if user.user_type=='sponsor':
-               # user should already have a type since they logged-in in the past
-                # use identity_changed to send signal to flask_principal showing identity, user_type
-                identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
-                # placing identity_object into variable for print/display
-                identity_object = Identity(user.id,user.user_type)
-                # printing identity_object to console for verification
-                print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
                 # redirect to sponsor dashboard
                 return redirect(url_for('sponsor_bp.dashboard_sponsor'))
             # if user type is editor, send to editor dashboard
             elif user.user_type=='editor':
-
-
+                # redirect to editor dashboard
                 return redirect(url_for('editor_bp.dashboard_editor'))
         # otherwise flash invalid username/password combo
         flash('Invalid username/password combination')
@@ -119,6 +121,16 @@ def signupsponsor():
             db.session.commit()  # Create new user
             login_user(user, remember=False, duration=None, force=False, fresh=True)
             # if everything goes well, they will be redirected to the main application
+
+            # new user now has a type, extract and send to permissions signal
+            # use identity_changed to send signal to flask_principal showing identity, user_type
+            identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
+            # placing identity_object into variable for print/display
+            identity_object = Identity(user.id,user.user_type)
+            # printing identity_object to console for verification
+            print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+
+
             return redirect(url_for('sponsor_bp.dashboard_sponsor'))
         flash('A user already exists with that email address.')
     return render_template(
@@ -158,6 +170,15 @@ def signupeditor():
             # commit our new user record and log the user in
             db.session.add(user)
             db.session.commit()  # Create new user
+
+            # new user now has a type, extract and send to permissions signal
+            # use identity_changed to send signal to flask_principal showing identity, user_type
+            identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
+            # placing identity_object into variable for print/display
+            identity_object = Identity(user.id,user.user_type)
+            # printing identity_object to console for verification
+            print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+
             login_user(user, remember=False, duration=None, force=False, fresh=True)
             # if everything goes well, they will be redirected to the main application
             return redirect(url_for('editor_bp.dashboard_editor'))

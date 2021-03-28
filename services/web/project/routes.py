@@ -1,11 +1,17 @@
 """Logged-in page routes."""
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
+from flask import g, current_app, abort, request
 from flask_login import current_user, login_required
 from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
 from . import sponsor_permission
+# for identifitaction and permission management
+from flask_principal import Identity, identity_changed, AnonymousIdentity
+# for printing system messages
+import sys
+
 
 # Blueprint Configuration
 # we define __name__ as the main blueprint, and the templates/static folder.
@@ -42,6 +48,13 @@ editor_bp = Blueprint(
 def logoutsponsor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+
     return redirect(url_for('auth_bp.login'))
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
@@ -300,11 +313,3 @@ def documentedit_editor(document_id):
 
 # ---------- Page Access Restrictions ----------
 
-def sponsor_only():
-
-    current_user_id = current_user.id
-    current_user_type = User.query.filter(User.id == current_user_id)[0].user_type
-
-    if not current_user_type == 'sponsor':
-        flash('You do not have access to view this page.')
-        return redirect(url_for('editor_bp.dashboard_editor'))
