@@ -5,6 +5,7 @@ from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
+from . import sponsor_permission
 
 # Blueprint Configuration
 # we define __name__ as the main blueprint, and the templates/static folder.
@@ -45,6 +46,7 @@ def logoutsponsor():
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
 @login_required
+# @sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
 
     # checking if user type is sponsor

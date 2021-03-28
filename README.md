@@ -208,6 +208,352 @@ def page_not_found(e):
     return redirect(url_for('login'))
 ```
 
+### Migrating the Project
+
+* Started out by copying the entire project structure from [here](https://github.com/pwdel/userlevelmodelsflask)
+* For development purposes, changed the name of the config variable, "DATABASE_URL_PROD" to "DATABASE_URL"
+
+### Where to Put Flask Principal
+
+To start off with, we can put the main function definition within __init__.py.
+
+Dependencies must be added to requirements.txt.  The dependency file for [Flask-Principal](https://pypi.org/project/Flask-Principal/) can be found there at version 0.4.0
+
+Adding Flask-Principal to requirements.txt resulted in no errors.
+
+However, from the import, right away we get the error:
+
+```
+flask  |     from flask.ext.principal import Principal, Permission, RoleNeed
+flask  | ModuleNotFoundError: No module named 'flask.ext'
+
+```
+
+I was able to get it working by replacing "ext" with underscore, [per this code repo](https://isgb.otago.ac.nz/infosci/nigel.stanger/INFORMS2/commit/9628eebb91ec2dca8f507e092d7e6722cb1c7b25):
+
+```
+from flask_principal import Principal, Permission, RoleNeed
+```
+
+ext must be a legacy method of calling out modules.
+
+Within __init__.py we added the following, without issue:
+
+```
+# Activating Flask Principal
+# calling Flask Principal
+principals = Principal(app)
+
+# setting up a sponsor role
+sponsor_role = RoleNeed('sponsor')
+
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+```
+### Setting Up within Route
+
+```
+@sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
+@login_required
+@sponsor_permission.require(http_exception=403)
+def dashboard_sponsor():
+```
+By just decorating the above function without having imported we get an error. Within routes.py, the import from the init file happens with:
+
+```
+from . import sponsor_permission
+```
+However then we get:
+
+```
+flask  | ImportError: cannot import name 'sponsor_permission' from partially initialized module 'project' (most likely due to a circular import) (/usr/src/theapp/project/__init__.py)
+
+```
+
+To avoid the circular import, we put the following above the create_app() function within __init__.py
+
+```
+from flask_principal import Principal, Permission, RoleNeed
+
+...
+
+# Flask Principal
+principals = Principal()
+# setting up a sponsor role from Flask Principal
+sponsor_role = RoleNeed('sponsor')
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+
+```
+Note that we are using Principal() instead of Principal(app). It is not clear why Principal(app) would be needed as it's not envoked anywhere in our code yet.
+
+Then within routes.py, we make sure the following is added:
+
+```
+@sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
+@login_required
+@sponsor_permission.require(http_exception=403)
+def dashboard_sponsor():
+
+```
+The next step is to test this by attempting to log in as an editor, and then see if we can visit the /sponsor/dashboard...which indeed it does, however there is an attribute error, which suggests that it possibly doesn't even work for a sponsor - which after checking, we see we get the same error:
+
+```
+
+    File "/usr/local/lib/python3.9/site-packages/flask_principal.py", line 198, in _decorated
+
+    with self:
+
+    File "/usr/local/lib/python3.9/site-packages/flask_principal.py", line 205, in __enter__
+
+    if not self.can():
+
+    File "/usr/local/lib/python3.9/site-packages/flask_principal.py", line 193, in can
+
+    return self.identity.can(self.permission)
+
+    File "/usr/local/lib/python3.9/site-packages/flask_principal.py", line 188, in identity
+
+    return g.identity
+
+    File "/usr/local/lib/python3.9/site-packages/werkzeug/local.py", line 347, in __getattr__
+
+    return getattr(self._get_current_object(), name)
+
+    AttributeError: '_AppCtxGlobals' object has no attribute 'identity'
+
+
+```
+It was never clear how Flask-Principal was pulling these identities out of nowhere to decide how to take action.  First possibility, which doesn't really clear up the problem, but appears to perhaps make up for using Principal() rather than Principal(app) upon initializatin, is to add the following within our create_app() - which we had found [here at this code](https://isgb.otago.ac.nz/infosci/nigel.stanger/INFORMS2/commit/9628eebb91ec2dca8f507e092d7e6722cb1c7b25).
+
+```
+...
+
+principals.init_app(app)
+```
+After doing this, we now get a better error, a 403 error, like we are expecting, printed out nicely on the browser:
+
+```
+Forbidden
+
+<Permission needs={Need(method='role', value='sponsor')} excludes=set()>
+```
+We can come back and clean this up with a 403 handler in the future.  However for now, the problem is that somehow this function is looking for a value='sponsor', via method='role' but it's not clear where that is coming from and what that means, and how these attributes get assigned to our user type.
+
+#### Using a Blog Tutorial on Demystifying Flask-Principal
+
+Reading through [this tutorial on demystifying Flask-Principal](https://jupyterdata.medium.com/a-shot-at-demystifying-flask-principal-dda5aaeb6bc6), I observe the following code:
+
+```
+     def __init__(self, id):
+         if not id in self.USERS:
+             raise UserNotFoundError()
+         self.id = id
+         self.password = self.USERS[id]
+         self.roles=self.ROLES[id]
+```
+Basically, within the __init__ function, you have self.roles created within the User class.
+
+```
+self.roles=self.ROLES[id]
+```
+
+Bear in mind, this is a class where in the UserMixin standard structure is an input, which constrasts to our db.Model input.
+
+```
+class User(UserMixin):
+    '''Simple User class'''
+```
+
+There is significant documentation within the [Flask Principal Github](https://github.com/mattupstate/flask-principal/blob/master/flask_principal.py), within the flask_principal.py file, in the form of comments.  It may be even easier to look at this documentation and read through it rather than a tutorial.
+
+#### Flask-Principal Documentation - identity_changed on Login
+
+Signal sent when the identify for a request has been changed.
+
+This signal, "identity-changed" should be sent when authentication has been performed.  Flask-Principal connects to this signal and cuases the identity to be saved in the session.
+
+Example:
+
+```
+    from flaskext.principal import Identity, identity_changed
+
+    def login_view(req):
+        username = req.form.get('username')
+        # check the credentials
+        identity_changed.send(app, identity=Identity(username))
+```
+
+So basically, this should happen during authentication.
+
+Another example is the function, "login_check()"
+
+```
+def login_check():
+    # validate username and password
+    user = User.get(request.form['username'])
+    if (user and user.password == request.form['password']):
+        login_user(user)
+     identity_changed.send(current_app._get_current_object(), identity=Identity(user.roles))
+    else:
+        flash('Username or password incorrect')    return render_template('auth/index.html')
+```
+The above is just example code showing one example of a user login. Our application actually uses user.id to authenticate, rather than username.  This, "identity changed" signal doesn't really mean an identity was changed in the database, it just means a signal was sent to flask_principal, containing the Identity object.
+
+```
+identity_changed.send(current_app._get_current_object(), identity=Identity(user.roles))
+```
+The above should probably be changed to align with our platform, such that User.user_type is the role, on Login:
+
+```
+from flask import g, session, current_app, abort, request
+from flask_principal import Identity, identity_changed
+...
+
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
+
+...
+
+        if user and user.check_password(password=form.password.data):
+            login_user(user)
+            
+            # user should already have a type since they logged-in in the past
+            # use identity_changed to send signal to flask_principal showing identity, user_type
+            identity_changed.send(current_app._get_current_object(), identity=Identity(user.user_type))
+
+            next_page = request.args.get('next')
+            if user.user_type=='sponsor':
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            elif user.user_type=='editor':
+                return redirect(url_for('editor_bp.dashboard_editor'))
+
+...
+
+
+```
+* [current_app is a part of flask](https://flask.palletsprojects.com/en/1.1.x/api/#flask.current_app)
+* [_get_current_object_() is a part of Flask](https://werkzeug.palletsprojects.com/en/1.0.x/local/#werkzeug.local.LocalProxy._get_current_object)
+
+Once the above is implemented properly, there is no error or protest from the application, but there is no clear indication that it's working either. Logging into the flask shell won't really help because that user isn't an actual sponsor user so much as the server-user observing the flask application.
+
+We can see if something happened successfully within flask by printing to console with app.logger.X() :
+
+```
+import sys
+
+...
+
+			# user should already have a type since they logged-in in the past
+            # use identity_changed to send signal to flask_principal showing identity, user_type
+            identity_changed.send(current_app._get_current_object(), identity=Identity(user.user_type))
+            # placing identity_object into variable for print/display
+            identity_object = Identity(user.user_type)
+            # printing identity_object to console for verification
+            print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+
+```
+When we did this, we get the message that the following object was sent to current_app:
+
+```
+<Identity id="sponsor" auth_type="None" provides=set()>
+```
+So the identity really should be the user.id, the number, rather than the type.  The auth_type should be 'sponsor'.
+
+From the [Flask-Principal documentation](https://pythonhosted.org/Flask-Principal/), we see it defines the following class:
+
+```
+ class flask_principal.Identity(id, auth_type=None)
+
+    Represent the user’s identity.
+    Parameters:	
+
+        id – The user id
+        auth_type – The authentication type used to confirm the user’s identity.
+
+```
+Putthing this within the proper place in the logic, we should get the user type, "sponsor" sent if the user is indeed a sponsor.
+
+```
+flask  | Sent:  <Identity id="1" auth_type="sponsor" provides=set()>  ...to current_app
+```
+So within the location in the logic that we're looking for, under sponsor, we place:
+
+```
+if user.user_type=='sponsor':
+               # user should already have a type since they logged-in in the past
+               # use identity_changed to send signal to flask_principal showing identity, user_type
+               identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
+               # placing identity_object into variable for print/display
+               identity_object = Identity(user.id,user.user_type)
+               # printing identity_object to console for verification
+               print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+               # redirect to sponsor dashboard
+               return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+```
+Which should activate if the user.user_type is indeed sponsor.
+
+#### Flask-Principal Documentation - identity_changed on Signup
+
+Now that identity_changed has been successfully implemented within the login, it needs to also be implemented on signup.
+
+
+#### Going Back And Fixing User_Type Logic for Login
+
+The following logic appears not to work. This appears to be something we could diagnose with the Flask Shell to understand how to print out the user_type as a string rather than an object.
+
+```
+        user_type = User.query(User.user_type)
+        print(user_type)
+
+        # based upon user type, route to location
+        if user_type=='sponsor':
+            return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+        elif user_type=='editor':
+            return redirect(url_for('editor_bp.dashboard_editor'))
+```
+
+This code fix could be back-populated into our previous project to ensure workability.
+
+
+#### Flask-Principal Documentation - identity_loaded
+
+
+#### Flask-Principal Documentation - Need
+
+#### Flask-Principal Documentation - UserNeed
+
+#### Flask-Principal Documentation - RoleNeed
+
+#### Flask-Principal Documentation - TypeNeed
+
+#### Flask-Principal Documentation - ActionNeed
+
+#### Flask-Principal Documentation - ItemNeed
+
+#### Flask-Principal Documentation - Identity
+
+class Identity(object):
+
+>    The identity is used to represent the user's identity in the system. This object is created on login, or on the start of the request as loaded from the user's session. Once loaded it is sent using the `identity-loaded` signal, and should be populated with additional required information. Needs that are provided by this identity should be added to the `provides` set after loading.
+
+
+#### Flask-Principal Documentation - AnnonymousIdentity
+
+#### Flask-Principal Documentation - IdentityContext
+
+The principal behaves as either a context manager or a decorator. The permission is checked for provision in the identity, and if available the flow is continued (context manager) or the function is executed (decorator).
+
+#### Flask-Principal Documentation - Permission
+
+#### Flask-Principal Documentation - Denial
+
+#### Flask-Principal Documentation - Principal
+
+
+
+
+
 ## Flask Admin
 
 

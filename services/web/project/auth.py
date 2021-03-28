@@ -1,10 +1,16 @@
 """Routes for user authentication."""
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
+from flask import g, current_app, abort, request
 from flask_login import login_required, current_user, login_user
 from .forms import LoginForm, SignupForm
 from .models import db, User
 from . import login_manager
 from .routes import sponsor_bp, editor_bp
+# for identifitaction and permission management
+from flask_principal import Identity, identity_changed
+# for printing system messages
+import sys
+
 
 # Blueprint Configuration
 auth_bp = Blueprint(
@@ -39,11 +45,25 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and user.check_password(password=form.password.data):
             login_user(user)
+             # send to next page
             next_page = request.args.get('next')
+            # check user type, if sponsor go to sponsor dashboard
             if user.user_type=='sponsor':
+               # user should already have a type since they logged-in in the past
+                # use identity_changed to send signal to flask_principal showing identity, user_type
+                identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
+                # placing identity_object into variable for print/display
+                identity_object = Identity(user.id,user.user_type)
+                # printing identity_object to console for verification
+                print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+                # redirect to sponsor dashboard
                 return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            # if user type is editor, send to editor dashboard
             elif user.user_type=='editor':
+
+
                 return redirect(url_for('editor_bp.dashboard_editor'))
+        # otherwise flash invalid username/password combo
         flash('Invalid username/password combination')
         return redirect(url_for('auth_bp.login'))
     return render_template(
