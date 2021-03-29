@@ -54,19 +54,12 @@ def logoutsponsor():
     identity_object = AnonymousIdentity()
     # printing identity_object to console for verification
     print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
-
     return redirect(url_for('auth_bp.login'))
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
 @login_required
 # @sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
-
-    # checking if user type is sponsor
-    # ret = sponsor_only()
-    # if( not ret ):
-    #    return ret
-
     """Logged-in User Dashboard."""
     return render_template(
         'dashboard_sponsor.jinja2',
@@ -234,6 +227,12 @@ def documentedit_sponsor(document_id):
 def logouteditor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
     return redirect(url_for('auth_bp.login'))
 
 @editor_bp.route('/editor/dashboard', methods=['GET'])

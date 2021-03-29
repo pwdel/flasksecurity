@@ -390,6 +390,11 @@ Within blinker you can, among objects:
 
 The source code for [Blinker can be found here](https://github.com/jek/blinker).
 
+#### Flask-Principal Documentation - Identity - What is "Identity"?
+
+class Identity(object):
+
+>    The identity is used to represent the user's identity in the system. This object is created on login, or on the start of the request as loaded from the user's session. Once loaded it is sent using the `identity-loaded` signal, and should be populated with additional required information. Needs that are provided by this identity should be added to the `provides` set after loading.
 
 
 #### Flask-Principal Documentation - identity_changed on Login for Sponsor
@@ -607,37 +612,64 @@ We have to 1. Populate the identity object with the necessary authorization prov
 
 After the identiy is loaded, flask_principal can use IdentityContext to compare the Identity to the Permission, which holds a set of Needs, and grant access if the Identity's attributes pass the logic of Permission according to what is stored in Needs.
 
-The following would go in our __init__.py file:
+The following would go in our __init__.py file, to define our, "on_identity_loaded() function:
 
 ```
-from flask_principal import identity_loaded, RoleNeed, UserNeed
-
-...
-
+# Identity Loading Function from flask_principal
+# identity_loaded adds any additional information to the Identity instance such as roles.
+# Signal sent when the identity has been initialised for a request.
+# @identity_loaded is a decorator, connect_via sender "app" with weak signals via blinker
 @identity_loaded.connect_via(app)
 def on_identity_loaded(sender, identity):
     # Set the identity user object
+    # basically pass current_user object to identity.user
     identity.user = current_user
 
     # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
     if hasattr(current_user, 'id'):
-    	# specifically, need to have current_user.id
+        # specifically, need to have current_user.id
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
         identity.provides.add(UserNeed(current_user.id))
-
-    # Assuming the User model has a user_type, update the
-    # identity with the user_type that the user provides
-    if hasattr(current_user, 'user_type'):
-        for role in current_user.user_type
-            identity.provides.add(RoleNeed(role.name))
+        # Query user type given user.id
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
 
 ```
 
 * "hasattr" is a python function that looks at a class, for its attributes and returns true/false based upon whether that class has the attribute.
+* connect_via() is from the "blinker" dependency
+
+With some previous code which had attempted to index the current_user for role, we get the error:
+
+```
+flask  |     for role in current_user.user_type
+```
+Basically, you can't query the current_user for a role or user_type.  The only [attributes that the user class for current_user](https://flask-login.readthedocs.io/en/latest/#your-user-class) has is the following:
+
+* is_authenticated
+* is_active
+* is_annonymous
+* get_id()
+
+To get the role, we need to query the database for the user itself.  This query could basically filter for the user.id and pull the user_type.  The flask terminal can be useful in building this query.
+
+Once we properly modify the code to align with above, we get the following printed out for the user every time they change pages:
+
+```
+flask  | Providing ID:  2  ...to Identity
+flask  | Providing Role:  sponsor  ...to Identity
+```
+
+So basically the ID and the role is following them around, like an identification badge.
 
 
-
-
-#### Flask-Principal Documentation - Need
+#### Flask-Principal Documentation - Need - What is a Need?
 
 Needs and Permissions have to be loaded up based upon user role.
 
@@ -650,24 +682,6 @@ Need = namedtuple('Need', ['method', 'value'])
 > This is just a named tuple, and practically any tuple will do. The ``method`` attribute can be used to look up element 0, and the ``value`` attribute can be used to look up element 1.
 
 So basically, it's a tuple that is labeled, "Need" with a "method" and a "value."  The method could be id, role or perhaps something else - role, type, or action. The value could be the id's value, or the actual role value, action, type, item etc.  It's basically a flexible way of holding values for roles, id's and other important attributes...it's a way of recording the "needs."
-
-We can create a principal.py file in which we organize various permissions and needs.
-
-```
-from collections import namedtuple
-from functools import partial
-
-from flask_login import current_user
-from flask_principal import identity_loaded, Permission, RoleNeed, UserNeed
-
-BlogPostNeed = namedtuple('blog_post', ['method', 'value'])
-EditBlogPostNeed = partial(BlogPostNeed, 'edit')
-
-class EditBlogPostPermission(Permission):
-    def __init__(self, post_id):
-        need = EditBlogPostNeed(unicode(post_id))
-        super(EditBlogPostPermission, self).__init__(need)
-```
 
 
 ##### UserNeed
@@ -700,31 +714,6 @@ UserNeed.__doc__ =
 
 > And that might describe the permission to update a particular blog post. In reality, the developer is free to choose whatever convention the permissions are.
 
-#### Flask-Principal Documentation - Identity
-
-class Identity(object):
-
->    The identity is used to represent the user's identity in the system. This object is created on login, or on the start of the request as loaded from the user's session. Once loaded it is sent using the `identity-loaded` signal, and should be populated with additional required information. Needs that are provided by this identity should be added to the `provides` set after loading.
-
-#### Flask-Principal Documentation - IdentityContext
-
-> The principal behaves as either a context manager or a decorator. The permission is checked for provision in the identity, and if available the flow is continued (context manager) or the function is executed (decorator).
-
-
-```
-    def identity(self):
-        """The identity of this principal
-        """
-        return g.identity
-
-    def can(self):
-        """Whether the identity has access to the permission
-        """
-        return self.identity.can(self.permission)
-```
-
-Basically, IdentityContext takes the Identity, compares it to the Permission, which contains Needs, and if the appropriate Needs are found within the logic of Permission, access is granted.
-
 #### Flask-Principal Documentation - Permission
 
 Permission(object)
@@ -745,12 +734,213 @@ Has several functions within the Permission class that allows processing of the 
 * reverse(self) - returns the reverse of the current state.
 * Also includes - union, difference, subset, allows.
 
-#### Flask-Principal Documentation - Denial
+#### Setting Up Needs & Permissions Functions
 
-Shortcut for not allowing permission.
+Next to be able to make use of this virtual ID card we have given each user, we have to be able to set up a permission, and then use that permission as a barrier to entry over a resource.
+
+I will also need to add more logic into the identity_loaded signal handler.
+
+The following Permissions and Needs should be added to our __init__.py prior to app registration:
+
+```
+from flask_principal import identity_loaded, Principal, Permission, UserNeed, RoleNeed
+
+# Permissions and Needs
+# setting up a sponsor role from Flask Principal
+sponsor_role = RoleNeed('sponsor')
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+
+# setting up an editor role from Flask Principal
+editor_role = RoleNeed('editor')
+# setting up an editor permission
+sponsor_permission = Permission(editor_role)
+```
+Then within the identity_loaded function covered in the last section, 
+
+```
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+...
+
+    # Add the UserNeed to the identity
+
+    ...
+
+    # For a given user type...
+    # Add the needs to the identity based upon our logic
+ 		# some kind of logic setting up needs with each user
+
+```
+We have to add some kind of logic below which attaches the needs to the 
+
+```
+	# this is set up in such a way that multiple needs can be added to the same user
+	needs = []
+	# append sponsor and editor roles depending upon user
+	# if current_user_type is sponsor
+	if current_user_type == 'sponsor':
+		# add sponsor_role, RoleNeed to needs
+		needs.append(sponsor_role)
+	# if current_user_type is editor
+	elif current_user_type == 'editor':
+		# add editor_role, RoleNeed to needs
+		needs.append(editor_role)
+		
+	print('appended to needs : ',needs, file=sys.stderr)
+	# add all of the listed needs to current_user
+	for n in needs:
+		g.identity.provides.add(n)
+
+```
+Once those needs are added, decorations can be added to function to approve or deny access.
+
+Which appears to be approximately what we are looking for - however we have an error that, "g" is not defined.  What is "g" and what was it supposed to be?  It appears to be from the [flask-principal source code](https://github.com/mattupstate/flask-principal/blob/0b5cd06b464ae8b60939857784bda86c03dda1eb/flask_principal.py#L373), and it's not clear why it was being used in a tutorial, but if we eliminate "g" we get an expected output:
+
+```
+flask  | appended to needs :  [Need(method='role', value='sponsor')]
+```
+Our overall finalized, "Identity and Needs Loader Factory" looks like the following:
+
+```
+# Identity Loading Factory from flask_principal
+# identity_loaded adds any additional information to the Identity instance such as roles.
+# then, needs are added and brought along with that user for various permissions functions
+# Signal sent when the identity has been initialised for a request.
+# @identity_loaded is a decorator, connect_via sender "app" with weak signals via blinker
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # Query user type given user.id
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+
+    # this is set up in such a way that multiple needs can be added to the same user
+    needs = []
+    # append sponsor and editor roles depending upon user
+    # if current_user_type is sponsor
+    if current_user_type == 'sponsor':
+        # add sponsor_role, RoleNeed to needs
+        needs.append(sponsor_role)
+    # if current_user_type is editor
+    elif current_user_type == 'editor':
+        # add editor_role, RoleNeed to needs
+        needs.append(editor_role)      
+    print('appended to needs : ',needs, file=sys.stderr)
+    # add all of the listed needs to current_user
+    for n in needs:
+        identity.provides.add(n)
+```
+
+And the output looks like:
+
+```
+flask  | Providing ID:  1  ...to Identity
+flask  | Providing Role:  sponsor  ...to Identity
+flask  | appended to needs :  [Need(method='role', value='sponsor')]
+
+```
+
+##### Logout Error - UnboundLocalError
+
+```
+UnboundLocalError
+
+UnboundLocalError: local variable 'current_user_type' referenced before assignment
+
+
+File "/usr/src/theapp/project/__init__.py", line 118, in on_identity_loaded
+
+if current_user_type == 'sponsor':
+
+
+```
+
+##### Another UnboundLocalError
+
+Another situation may arise with an unbound local error, where logic is happening even if current_user_type doesn't exist.
+
+```
+    File "/usr/src/theapp/project/__init__.py", line 117, in on_identity_loaded
+
+    if current_user_type == 'sponsor':
+
+    UnboundLocalError: local variable 'current_user_type' referenced before assignment
+```
+
 
 #### Flask-Principal Documentation - Principal
 
+
+
+#### Adding the Permission Into the Route as Decorator
+
+Within the sponsor dashboard, it is important to add the @sponsor_permission as a decorator.:
+
+```
+@sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
+@login_required
+@sponsor_permission.require(http_exception=403)
+def dashboard_sponsor():
+
+```
+However, how is sponsor_permission getting information about the user to know that said user is allowed in?
+Per the [documentation on Principal here](https://pythonhosted.org/Flask-Principal/):
+
+```
+# Create a permission with a single Need, in this case a RoleNeed.
+admin_permission = Permission(RoleNeed('admin'))
+```
+Which, the analog to in our code is, at the top of the __init__.py file:
+
+```
+# Permissions and Needs
+# setting up a sponsor role from Flask Principal
+sponsor_role = RoleNeed('sponsor')
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+```
+Which could be re-written:
+
+```
+sponsor_permission = Permission(RoleNeed('sponsor'))
+```
+
+#### Flask-Principal Documentation - IdentityContext
+
+> The principal behaves as either a context manager or a decorator. The permission is checked for provision in the identity, and if available the flow is continued (context manager) or the function is executed (decorator).
+
+
+```
+    def identity(self):
+        """The identity of this principal
+        """
+        return g.identity
+
+    def can(self):
+        """Whether the identity has access to the permission
+        """
+        return self.identity.can(self.permission)
+```
+
+Basically, IdentityContext takes the Identity, compares it to the Permission, which contains Needs, and if the appropriate Needs are found within the logic of Permission, access is granted.
+
+#### Flask-Principal Documentation - Denial
+
+Shortcut for not allowing permission.
 
 
 #### Going Back And Fixing User_Type Logic for Login
