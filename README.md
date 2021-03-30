@@ -869,22 +869,130 @@ if current_user_type == 'sponsor':
 
 ```
 
-##### Another UnboundLocalError
-
-Another situation may arise with an unbound local error, where logic is happening even if current_user_type doesn't exist.
+What is an UnboundLocalError?  Here's an example.
 
 ```
-    File "/usr/src/theapp/project/__init__.py", line 117, in on_identity_loaded
+>>> y=10
+>>> def foo():
+...     print(y)                                                                            
+...     y += 1
 
-    if current_user_type == 'sponsor':
+>>> bar()
+UnboundLocalError: local variable 'y' referenced before assignment
 
-    UnboundLocalError: local variable 'current_user_type' referenced before assignment
+```
+This is because when you make an assignment to a variable in a scope, that variable becomes local to that scope and shadows any similarly named variable in the outer scope.
+
+Basically, we need to re-write our  on_identity_loaded() function to ensure that current_user_type is available to all if statements within the entire function.
+
+```
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+    # Query user type given user.id
+
+    current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+...
+
+```
+
+##### 'AnonymousUserMixin' object has no attribute 'id'
+
+Basically, if we hit any condition where the user is annonymous, such as hitting the front page for the first time, without having created a user in the database, we're going to lack any user attributes.
+
+So basically, prior to authentication, we need some kind of conditional which prevents a database query from even occuring, because it's always going to come up with a blank ID for current_user.id.
+
+```
+File "/usr/src/theapp/project/__init__.py", line 99, in on_identity_loaded
+
+current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+```
+
+We could build a conditional.  What kind of conditional do we want?
+
+* try/except/final - would be if we want to check for an error, after checking for an attribute. This might be too overly broad, because it might catch any error at all, rather than precisely checking whether the id exists.
+* hassattr() checks for whether a class has an attribute.  This is more precise because we are asking exactly whether this class has this specified attribute.
+
+hasattr() works as follows:
+
+```
+>>> class Big(object):                                                             
+...     def __init__(self,x,y):                                                         
+...             self.x=x                                                                    
+...             self.y=y   
+
+>>> f=Big(100,"hi") 
+
+>>> hasattr(f,'x')                                                                          
+True
+
+```
+Note that the attribute input must be a string. So we can build a conditional statement for current_user:
+
+```
+if hassattr(current_user,'id'):
+	# do the database lookup and user 
+
+```
+So our final logic looks like the following:
+
+```
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+            # Query user type given user.id
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+        # append sponsor and editor roles depending upon user
+        # if current_user_type is sponsor
+        if current_user_type == 'sponsor':
+            # add sponsor_role, RoleNeed to needs
+            needs.append(sponsor_role)
+        # if current_user_type is editor
+        elif current_user_type == 'editor':
+            # add editor_role, RoleNeed to needs
+            needs.append(editor_role)      
+        print('appended to needs : ',needs, file=sys.stderr)
+        # add all of the listed needs to current_user
+        for n in needs:
+            identity.provides.add(n)
 ```
 
 
 #### Flask-Principal Documentation - Principal
 
+##### set_identity(self, identity):
 
+##### identity_loader(self, f):
+
+##### identity_saver(self, f):
+
+##### set_thread_identity(self, identity):
+        g.identity = identity
+
+##### on_identity_changed(self, app, identity):
+
+##### on_before_request(self):
+
+##### is_static_route(self):
 
 #### Adding the Permission Into the Route as Decorator
 
@@ -918,6 +1026,207 @@ Which could be re-written:
 ```
 sponsor_permission = Permission(RoleNeed('sponsor'))
 ```
+
+So, if we add:
+
+```
+@sponsor_permission.require(http_exception=403)
+```
+To our dashboard_sponsor() route, and then try to log in as a sponsor we get the following on our console/webpage:
+
+```
+flask  | 172.20.0.1 - - [30/Mar/2021 17:20:11] "POST /login HTTP/1.1" 302 -
+flask  | Providing ID:  1  ...to Identity
+flask  | Providing Role:  sponsor  ...to Identity
+flask  | appended to needs :  [Need(method='role', value='sponsor')]
+flask  | 172.20.0.1 - - [30/Mar/2021 17:20:11] "GET /sponsor/dashboard HTTP/1.1" 403 -
+
+```
+With message on the webpage:
+
+```
+Forbidden
+
+<Permission needs={Need(method='role', value='editor')} excludes=set()>
+```
+So for some reason, we're seeing the role, 'editor' as a requirement rather than sponsor.
+
+This was simply because we had over-written our permission names incorrectly, basically over-writing sponsor_permission twice.  The correct permissions, established in __init__.py are shown below:
+
+```
+# Permissions and Needs
+# setting up a sponsor role from Flask Principal
+sponsor_role = RoleNeed('sponsor')
+# setting up a sponsor permission
+sponsor_permission = Permission(sponsor_role)
+
+# setting up an editor role from Flask Principal
+editor_role = RoleNeed('editor')
+# setting up an editor permission
+editor_permission = Permission(editor_role)
+
+```
+After this was updated, we get a different error dealing with a database query, we get "TypeError: 'BaseQuery' object is not callable."
+
+This has to do with a login/logout problem we have established and is debugged below under the section:
+
+"Going Back And Fixing User_Type Logic for Login"
+
+Testing whether this permission setting works, I logged in as an editor, then attempted to access the /sponsor/dashboard and got a, "Forbidden" message, as expected.
+
+#### Protecting Other Routes for Other User Types
+
+There are several other routes for sponsors and editors which require protection. The protection can be achieved by decorating the routes as follows:
+
+```
+@~route-decorator
+@login_required
+@role_permission.require(http_exception=403)
+def route_function(input):
+
+```
+The current routes in need of protection and testing are:
+
+##### Sponsor Routes
+
+Decorate with:
+
+@sponsor_permission.require(http_exception=403)
+
+* /sponsor/documents/<document_id>
+* /sponsor/documents
+* /sponsor/newdocument
+* /sponsor/logout
+* /sponsor/dashboard
+
+Testing each of these routes can be done by logging in as a sponsor, and visiting all of the pages. If there is a 403 error as a sponsor, that's bad. Then, logout and login as an editor, if there's not a 403 error as an editor, that's bad.
+
+* After testing all of the routes as a sponsor - they all work.
+* After testing all of the routes as an editor - 
+
+* /sponsor/documents/<document_id> - Forbidden
+* /sponsor/documents - Forbidden
+* /sponsor/newdocument - Forbidden
+* /sponsor/logout - Forbidden
+* /sponsor/dashboard - Forbidden
+
+* Note, a 404 error is recieved if a trailing / is placed at the end of the URL.
+* If attempting to visit, "/" as an editor, we are redirected to, "forbidden."  This can be easily fixed by adding a function under, "/" as follows:
+
+```
+# when any user goes to /, they get redirected to /login
+@main_bp.route('/', methods=['GET'])
+@login_required
+# redirect to login page if logged in, to be re-routed to appropriate location
+def logindefault():
+    # redirect to login page
+    return redirect(url_for('auth_bp.login'))
+```
+
+##### Editor Routes
+
+Decorate with:
+
+@editor_permission.require(http_exception=403)
+
+After decorating all of the routes, the console prints out error:
+
+```
+flask  | NameError: name 'editor_permission' is not defined
+```
+This was from not importing the "editor_permission" module. On editor:
+
+* /editor/logout
+* /editor/dashboard
+* /editor/documents
+* /editor/documents/<document_id>
+
+On sponsor mode:
+
+* /editor/logout - Forbidden
+* /editor/dashboard - Forbidden
+* /editor/documents - Forbidden
+* /editor/documents/<document_id> - Forbidden
+
+...all of which are expected values.
+
+##### 403 Error Handling
+
+For 403 Error Handling, we just keep everything simple and redirect the user to the main page with no error messages.  This can be improved with more feedback in the future.
+
+I added this to the routes.py file.
+
+```
+# Send everything to the login page, don't worry about a message yet.
+
+@sponsor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+@editor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+```
+
+#### Protecting Individual Assets by User Number
+
+Protecting Individual Assets by User Number gets a little more fine-grained, in that if we are a sponsor, we can still view other sponsor documents, and if we are an editor, we can still see other editor documents under:
+
+* /sponsor/documents/<document_id>
+* /editor/documents/<document_id>
+
+While a document list view will not be generated that mixes up documents between the different sponsors, individual documents could be accessed through a guess-and-check methodology and through manually typing in URL's.  The server must be explicitly configured to prohibit user id's from not accessing documents they do not have access to.
+
+Looking at the current route for the sponsor/documents/<document_id>:
+
+```
+@sponsor_bp.route('/sponsor/documents/<document_id>', methods=['GET','POST'])
+@login_required
+@sponsor_permission.require(http_exception=403)
+def documentedit_sponsor(document_id):
+
+
+...
+
+    return render_template(
+        'documentedit_sponsor.jinja2',
+        form=form,
+        document=document,
+        editor=editor
+        )
+
+```
+
+"document_id" is given as an input.  I can write a custom function which dynamically places a permission on this document_id, sort of like this:
+
+```
+...
+def documentedit_sponsor(document_id):
+	permission = SponsorEditDocumentPermission(document_id)
+
+	if permission.can():
+		# do the edit
+		return render_template( stuff )
+
+```
+The trick is, there must be a Need, which is a named tuple, and a specific class defined to be able to call that permission above.
+
+On __init__.py:
+
+```
+
+SponsorDocumentNeed = namedtuple('sponsor_document', ['method', 'value'])
+SponsorEditDocumentNeed = partial(SponsorDocumentNeed, 'edit')
+
+class SponsorEditDocumentPermission(Permission):
+    def __init__(self, document_id):
+        need = SponsorEditDocumentNeed(unicode(document_id))
+        super(SponsorEditDocumentPermission, self).__init__(need)
+
+```
+
 
 #### Flask-Principal Documentation - IdentityContext
 
@@ -960,6 +1269,41 @@ The following logic appears not to work. This appears to be something we could d
 
 This code fix could be back-populated into our previous project to ensure workability.
 
+The error we get due to this code, when a user is logged in and then goes off the page and tries to re-visit, is:
+
+```
+
+    File "/usr/src/theapp/project/auth.py", line 33, in login
+
+    user_type = User.query(User.user_type)
+
+    TypeError: 'BaseQuery' object is not callable
+```
+Basically, we have to filter for the id, and then query for the type from the database, similar to how we do in the __init__.py function.  This function looks like the following:
+
+```
+    # Bypass if user is logged in already
+    if current_user.is_authenticated:
+        # if current user actually has id, which they all should
+        if hasattr(current_user, 'id'):
+            # get user id number
+            user_id = current_user.id
+            # filter for user to get user type as a string
+            current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+            # based upon user type, route to location
+            if current_user_type=='sponsor':
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            elif current_user_type=='editor':
+                return redirect(url_for('editor_bp.dashboard_editor'))
+        else:
+            return redirect(url_for('auth_bp.login'))
+    else:
+        return redirect(url_for('auth_bp.login'))
+
+```
+However, this creates a continuous redirect problem for annonymous users, or users without an id, every time there is a logout.
+
+Basically, we can just eliminate the "redirect()" functions and do nothing for the annonymous user.  After all, this is for a route where the user is already visiting, "login()" so there is no need to redirect them anywhere again.
 
 
 
@@ -1201,6 +1545,33 @@ Other Ideas:
 * Cookie Protection - SameSite From [this article](https://smirnov-am.github.io/securing-flask-web-applications/).
 
 
+## Future Work - Possible To Do List
+
+### Postgres Query Optimization
+
+Currently, every time an identity is loaded, which is basically every user action, we query the database for the user type.
+
+```
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+
+...
+
+# Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+```
+With one or two users performing a few simple actions, this may not matter.  However long-term, with an app that has a number of users, we may want to find a way to simply persist the user credentials in the session rather than querying the database every time.
+
+### Decide How to Treat Strict Slashes
+
+The following will treat slashes non-strictly, if added under the route.  Otherwise, Werkzeug interprets as an explicit rule to not match a trailing slash.
+
+* strict_slashes=False
+
+Otherwise, explicitly list all slash conditions for each route.
 
 ## References
 

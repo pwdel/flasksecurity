@@ -32,7 +32,7 @@ sponsor_permission = Permission(sponsor_role)
 # setting up an editor role from Flask Principal
 editor_role = RoleNeed('editor')
 # setting up an editor permission
-sponsor_permission = Permission(editor_role)
+editor_permission = Permission(editor_role)
 
 
 def create_app():
@@ -99,32 +99,34 @@ def on_identity_loaded(sender, identity):
     # ensure current_user has attribute identity "id"
     if hasattr(current_user, 'id'):
         # specifically, need to have current_user.id
+        # Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
         # print userid to console
         print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
         # provide userid to identity
         identity.provides.add(UserNeed(current_user.id))
-        # Query user type given user.id
-        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
         # print user_type to console
         print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
         # provide user_type to identity
         identity.provides.add(RoleNeed(current_user_type))
 
-    # this is set up in such a way that multiple needs can be added to the same user
-    needs = []
-    # append sponsor and editor roles depending upon user
-    # if current_user_type is sponsor
-    if current_user_type == 'sponsor':
-        # add sponsor_role, RoleNeed to needs
-        needs.append(sponsor_role)
-    # if current_user_type is editor
-    elif current_user_type == 'editor':
-        # add editor_role, RoleNeed to needs
-        needs.append(editor_role)      
-    print('appended to needs : ',needs, file=sys.stderr)
-    # add all of the listed needs to current_user
-    for n in needs:
-        identity.provides.add(n)
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+        # append sponsor and editor roles depending upon user
+        # if current_user_type is sponsor
+        if current_user_type == 'sponsor':
+            # add sponsor_role, RoleNeed to needs
+            needs.append(sponsor_role)
+        # if current_user_type is editor
+        elif current_user_type == 'editor':
+            # add editor_role, RoleNeed to needs
+            needs.append(editor_role)      
+        print('appended to needs : ',needs, file=sys.stderr)
+        # add all of the listed needs to current_user
+        for n in needs:
+            identity.provides.add(n)
 
 
 # create shell context processor

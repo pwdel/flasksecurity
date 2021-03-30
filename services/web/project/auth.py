@@ -27,17 +27,19 @@ def login():
     GET requests serve Log-in page.
     POST requests validate and redirect user to dashboard.
     """
-    # Bypass if user is logged in
+    # Bypass if user is logged in already
     if current_user.is_authenticated:
-        # get user number
-        user_type = User.query(User.user_type)
-        print(user_type)
-
-        # based upon user type, route to location
-        if user_type=='sponsor':
-            return redirect(url_for('sponsor_bp.dashboard_sponsor'))
-        elif user_type=='editor':
-            return redirect(url_for('editor_bp.dashboard_editor'))
+        # if current user actually has id, which they all should
+        if hasattr(current_user, 'id'):
+            # get user id number
+            user_id = current_user.id
+            # filter for user to get user type as a string
+            current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+            # based upon user type, route to location
+            if current_user_type=='sponsor':
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            elif current_user_type=='editor':
+                return redirect(url_for('editor_bp.dashboard_editor'))
 
     form = LoginForm()
     # Validate login attempt

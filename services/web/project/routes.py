@@ -6,7 +6,7 @@ from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
-from . import sponsor_permission
+from . import sponsor_permission, editor_permission
 # for identifitaction and permission management
 from flask_principal import Identity, identity_changed, AnonymousIdentity
 # for printing system messages
@@ -39,12 +39,16 @@ editor_bp = Blueprint(
 # when any user goes to /, they get redirected to /login
 @main_bp.route('/', methods=['GET'])
 @login_required
-
+# redirect to login page if logged in, to be re-routed to appropriate location
+def logindefault():
+    # redirect to login page
+    return redirect(url_for('auth_bp.login'))
 
 # ---------- sponsor user routes ----------
 
 @sponsor_bp.route("/sponsor/logout")
 @login_required
+@sponsor_permission.require(http_exception=403)
 def logoutsponsor():
     """User log-out logic."""
     logout_user()
@@ -58,7 +62,7 @@ def logoutsponsor():
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
 @login_required
-# @sponsor_permission.require(http_exception=403)
+@sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
     """Logged-in User Dashboard."""
     return render_template(
@@ -70,6 +74,7 @@ def dashboard_sponsor():
 
 @sponsor_bp.route('/sponsor/newdocument', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def newdocument_sponsor():
     
     # new document form
@@ -131,6 +136,7 @@ def newdocument_sponsor():
 
 @sponsor_bp.route('/sponsor/documents', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentlist_sponsor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -166,6 +172,7 @@ def documentlist_sponsor():
 
 @sponsor_bp.route('/sponsor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentedit_sponsor(document_id):
 
     # new document form
@@ -224,6 +231,7 @@ def documentedit_sponsor(document_id):
 
 @editor_bp.route("/editor/logout")
 @login_required
+@editor_permission.require(http_exception=403)
 def logouteditor():
     """User log-out logic."""
     logout_user()
@@ -237,6 +245,7 @@ def logouteditor():
 
 @editor_bp.route('/editor/dashboard', methods=['GET'])
 @login_required
+@editor_permission.require(http_exception=403)
 def dashboard_editor():
     """Logged-in User Dashboard."""
     return render_template(
@@ -248,6 +257,7 @@ def dashboard_editor():
 
 @editor_bp.route('/editor/documents', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentlist_editor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -280,6 +290,7 @@ def documentlist_editor():
 
 @editor_bp.route('/editor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentedit_editor(document_id):
 
     # new document form
@@ -312,3 +323,16 @@ def documentedit_editor(document_id):
 
 # ---------- Page Access Restrictions ----------
 
+# ---------- Error Handling ----------
+
+# Send everything to the login page, don't worry about a message yet.
+
+@sponsor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+@editor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
