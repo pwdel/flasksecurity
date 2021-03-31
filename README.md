@@ -985,8 +985,7 @@ def on_identity_loaded(sender, identity):
 
 ##### identity_saver(self, f):
 
-##### set_thread_identity(self, identity):
-        g.identity = identity
+##### set_thread_identity(self, identity): g.identity = identity
 
 ##### on_identity_changed(self, app, identity):
 
@@ -1179,6 +1178,8 @@ Protecting Individual Assets by User Number gets a little more fine-grained, in 
 
 While a document list view will not be generated that mixes up documents between the different sponsors, individual documents could be accessed through a guess-and-check methodology and through manually typing in URL's.  The server must be explicitly configured to prohibit user id's from not accessing documents they do not have access to.
 
+##### Protecting the Endpoint at the Route on route.py
+
 Looking at the current route for the sponsor/documents/<document_id>:
 
 ```
@@ -1199,7 +1200,7 @@ def documentedit_sponsor(document_id):
 
 ```
 
-"document_id" is given as an input.  I can write a custom function which dynamically places a permission on this document_id, sort of like this:
+"document_id" is given as an input.  I can write a custom function which dynamically places a permission on this document_id, thereby protecting the endpoint sort of like this:
 
 ```
 ...
@@ -1211,7 +1212,11 @@ def documentedit_sponsor(document_id):
 		return render_template( stuff )
 
 ```
+In this case, the function is not a decorator but a regular function call.
+
 The trick is, there must be a Need, which is a named tuple, and a specific class defined to be able to call that permission above.
+
+##### Setting Up Grandular Needs and Permissions on principalmanager.py
 
 On __init__.py:
 
@@ -1222,11 +1227,199 @@ SponsorEditDocumentNeed = partial(SponsorDocumentNeed, 'edit')
 
 class SponsorEditDocumentPermission(Permission):
     def __init__(self, document_id):
-        need = SponsorEditDocumentNeed(unicode(document_id))
+        need = SponsorEditDocumentNeed(str(document_id))
         super(SponsorEditDocumentPermission, self).__init__(need)
 
 ```
+What do some of these functions mean, "super" and "namedtuple" and where do they come from?  In order to be able to do a named tuple, we have to import:
 
+```
+import collections
+from colletions import namedtuple
+```
+Named tuples work like this:
+
+```
+>>> Point = namedtuple('Point', ['x', 'y'])                                            
+
+>>> Point
+<class '__main__.Point'>
+
+>>> p=Point(11,22)                                                                          
+
+>>> p0]+p[1]
+33                                                                                          
+>>> x,y=p
+
+>>> x,y 
+(11, 22)
+
+>>> p
+Point(x=11, y=22)  
+```
+The above also makes use of partials.  Partials return a partial object which behave like a function.  Partial freezes some aspects of a function's arguments or keywords resulting in a new object with a simplified signature.
+
+```
+# normal function
+
+def f(a,b):                                                                             
+...     return a+b
+
+>>> g=partial(f,1)
+
+>>> print(g(1))
+
+2
+
+>>> print(g(2))
+
+3
+
+>>> g=partial(f,1,1)
+
+>>> print(g())
+
+2
+
+```
+This also makes use of super() which is used for calling a method of a parent class.  super() basically allows for multiple classes to implement the same method.
+
+##### Checking for Attributes, Checking for Permissions Every Access in __init__.py
+
+Once we have the Permissions and Needs set up properly, it's necessary for check for these needs/permissions upon access within the __init__.py function, as with the sponsor permissions.
+
+This will be done something along the lines of the following:
+
+```
+def on_identity_loaded(sender, identity):
+	...
+
+	# if we are a sponsor
+		# and if we are in an individual document page that has a document_id
+			# if the user has documents
+				# query the documents list
+				# for document in the current user's documents
+					# add a custom need, an editing/viewing document need to each document
+					identity.provides.add(SponsorEditDocumentNeed(str(document_id)))
+
+```
+That's a decent amount to digest. Why am I setting things up in this format?  Basically, I want to avoid querying the database too much, basically optimizing database usage, which means only query when we need to get a list of the documents that belong to a particular user.  This is the reason for the, "if we are an individual document page that has a document_id" - I don't even want to make a query if we are not even using this document id.
+
+Another strategy could be to generate long, random and unguessable strings for document-id's or rather for document-URLs, which could perhaps another layer of security.  But for now, just adding permissions to those individual documents so other users of the same type can't even access each other's documents is an acceptable way to go.
+
+It's probably a better idea to first build the functionality, then optimize for database usage.  Starting out, we come up with the following:
+
+```
+from .principalmanager import SponsorDocumentNeed, SponsorEditDocumentNeed
+
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+        # Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+        # append sponsor and editor roles depending upon user
+        # if current_user_type is sponsor
+        if current_user_type == 'sponsor':
+            # add sponsor_role, RoleNeed to needs
+            needs.append(sponsor_role)
+            # query user's documents, filter documents by current sponsor user
+            document_objects = db.session.query(Retention.sponsor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.sponsor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.sponsor_id).filter(Retention.sponsor_id == current_user.id)
+            # get a count of the document objects
+            document_count = document_objects.count()
+            # blank list to fill with documentid's
+            document_id_list=[]
+            # loop through document objects to generate filled document_id_list
+            for counter in range(0,document_count):
+                # loop through document objects and append to list
+                document_id_list.append(document_objects[counter].document_id)
+                # provide the need mapping to the document for each document
+                identity.provides.add(SponsorEditDocumentNeed(str(document_objects[counter].document_id)))
+            # after for loop, show document id's appended to needs
+            print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
+        # if current_user_type is editor
+        elif current_user_type == 'editor':
+            # add editor_role, RoleNeed to needs
+            needs.append(editor_role)      
+
+        # print everything appended to needs, documents and others
+        print('appended to needs : ',needs, file=sys.stderr)
+        # add all of the listed needs to current_user
+
+        for n in needs:
+            identity.provides.add(n)
+
+```
+
+The key new part of this is:
+
+```
+            # query user's documents, filter documents by current sponsor user
+            document_objects = db.session.query(Retention.sponsor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.sponsor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.sponsor_id).filter(Retention.sponsor_id == current_user.id)
+            # get a count of the document objects
+            document_count = document_objects.count()
+            # blank list to fill with documentid's
+            document_id_list=[]
+            # loop through document objects to generate filled document_id_list
+            for counter in range(0,document_count):
+                # loop through document objects and append to list
+                document_id_list.append(document_objects[counter].document_id)
+                # provide the need mapping to the document for each document
+                identity.provides.add(SponsorEditDocumentNeed(str(document_objects[counter].document_id)))
+            # after for loop, show document id's appended to needs
+            print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
+
+
+```
+Which basically queries the current_user's documents, creates a list of id's while adding those custom needs, those document id's to the custom function, "SponsorEditDocumentNeed."
+
+Attempting to give some console feedback on what I'm least attempting to do, after logging in as a sponsor and creating a couple different documents, I get:
+
+```
+flask  | Querying Database for user_type!
+flask  | Providing ID:  3  ...to Identity
+flask  | Providing Role:  sponsor  ...to Identity
+flask  | Querying Database for document_ids!
+flask  | appended document_ids to needs :  [3, 4]
+flask  | appended to needs :  [Need(method='role', value='sponsor')]
+flask  | 172.20.0.1 - - [31/Mar/2021 16:56:51] "GET /sponsor/documents HTTP/1.1" 200 -
+```
+So while the above shows that a list of documents, [3,4] is showing for this particular sponsor, which are that particular sponsor's documents, nothing seems to be changing in terms of the specific resource permission.
+
+Looking further at the Flask-Principal documentation, it appears there might need to be another if function to allow the route functionality to work.  The example given shows:
+
+```
+@app.route('/posts/<post_id>', methods=['PUT', 'PATCH'])
+def edit_post(post_id):
+    permission = EditBlogPostPermission(post_id)
+
+    if permission.can():
+        # Save the edits ...
+        return render_template('edit_post.html')
+
+    abort(403)  # HTTP Forbidden
+```
+
+So evidently some kind of, "if permission.can()" function is needed, in lieu of the decorator.
+
+After activating this, including the abort(403) after our main logic, it works, sending the user back to their dashboard per our 403 error.
 
 #### Flask-Principal Documentation - IdentityContext
 
@@ -1304,7 +1497,6 @@ Basically, we have to filter for the id, and then query for the type from the da
 However, this creates a continuous redirect problem for annonymous users, or users without an id, every time there is a logout.
 
 Basically, we can just eliminate the "redirect()" functions and do nothing for the annonymous user.  After all, this is for a route where the user is already visiting, "login()" so there is no need to redirect them anywhere again.
-
 
 
 ## Flask Admin
@@ -1535,7 +1727,9 @@ Other Ideas:
 * [Restrict Acceess to Website API with Flask-CORS](https://stackoverflow.com/questions/54171101/restrict-access-to-a-flask-rest-api)
 * [X-Frame Options](https://flask.palletsprojects.com/en/1.1.x/security/#x-frame-options)
 
+Other than standard security loopholes, there is also inner-app security loopholes which involve protecting user's assets from each other.  This is more of an interference-restriction or resource access practice than a pure security practice, however it could also be adopted as an, "exterior" security feature in the future.  Basically:
 
+* For individual documents or assets owned by a user, generate URLs which are obscured by highly unguessable, long-form URL's on a per-post basis, rather than /document/1, /document/2, etc., which are highly guessable and have a pattern.  This is a sort of, "security by obscurity" practice that could be adopted to share assets with the open web if that is a user/customer need.
 
 ## Security Possible To Do List for Review
 
