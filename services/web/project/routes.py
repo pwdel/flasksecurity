@@ -1,10 +1,17 @@
 """Logged-in page routes."""
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
+from flask import g, current_app, abort, request
 from flask_login import current_user, login_required
 from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
+from . import sponsor_permission, editor_permission
+# for identifitaction and permission management
+from flask_principal import Identity, identity_changed, AnonymousIdentity
+# for printing system messages
+import sys
+
 
 # Blueprint Configuration
 # we define __name__ as the main blueprint, and the templates/static folder.
@@ -32,26 +39,31 @@ editor_bp = Blueprint(
 # when any user goes to /, they get redirected to /login
 @main_bp.route('/', methods=['GET'])
 @login_required
-
+# redirect to login page if logged in, to be re-routed to appropriate location
+def logindefault():
+    # redirect to login page
+    return redirect(url_for('auth_bp.login'))
 
 # ---------- sponsor user routes ----------
 
 @sponsor_bp.route("/sponsor/logout")
 @login_required
+@sponsor_permission.require(http_exception=403)
 def logoutsponsor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
     return redirect(url_for('auth_bp.login'))
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
-
-    # checking if user type is sponsor
-    # ret = sponsor_only()
-    # if( not ret ):
-    #    return ret
-
     """Logged-in User Dashboard."""
     return render_template(
         'dashboard_sponsor.jinja2',
@@ -62,6 +74,7 @@ def dashboard_sponsor():
 
 @sponsor_bp.route('/sponsor/newdocument', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def newdocument_sponsor():
     
     # new document form
@@ -123,6 +136,7 @@ def newdocument_sponsor():
 
 @sponsor_bp.route('/sponsor/documents', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentlist_sponsor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -158,6 +172,7 @@ def documentlist_sponsor():
 
 @sponsor_bp.route('/sponsor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentedit_sponsor(document_id):
 
     # new document form
@@ -216,13 +231,21 @@ def documentedit_sponsor(document_id):
 
 @editor_bp.route("/editor/logout")
 @login_required
+@editor_permission.require(http_exception=403)
 def logouteditor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
     return redirect(url_for('auth_bp.login'))
 
 @editor_bp.route('/editor/dashboard', methods=['GET'])
 @login_required
+@editor_permission.require(http_exception=403)
 def dashboard_editor():
     """Logged-in User Dashboard."""
     return render_template(
@@ -234,6 +257,7 @@ def dashboard_editor():
 
 @editor_bp.route('/editor/documents', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentlist_editor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -266,6 +290,7 @@ def documentlist_editor():
 
 @editor_bp.route('/editor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentedit_editor(document_id):
 
     # new document form
@@ -298,11 +323,16 @@ def documentedit_editor(document_id):
 
 # ---------- Page Access Restrictions ----------
 
-def sponsor_only():
+# ---------- Error Handling ----------
 
-    current_user_id = current_user.id
-    current_user_type = User.query.filter(User.id == current_user_id)[0].user_type
+# Send everything to the login page, don't worry about a message yet.
 
-    if not current_user_type == 'sponsor':
-        flash('You do not have access to view this page.')
-        return redirect(url_for('editor_bp.dashboard_editor'))
+@sponsor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+@editor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
