@@ -12,7 +12,7 @@ from flask_principal import Identity, identity_changed, AnonymousIdentity
 # for printing system messages
 import sys
 # individual document access permission
-from .principalmanager import SponsorEditDocumentPermission
+from .principalmanager import EditDocumentPermission
 
 
 # Blueprint Configuration
@@ -178,7 +178,7 @@ def documentlist_sponsor():
 def documentedit_sponsor(document_id):
 
     # setup permission for individual document_id
-    permission = SponsorEditDocumentPermission(document_id)
+    permission = EditDocumentPermission(document_id)
 
     # run route function if permission condition satisfied
     if permission.can():
@@ -303,33 +303,42 @@ def documentlist_editor():
 @editor_permission.require(http_exception=403)
 def documentedit_editor(document_id):
 
-    # new document form
-    form = DocumentForm()
+    # setup permission for individual document_id
+    permission = EditDocumentPermission(document_id)
 
-    # Getting the Document Object
-    # query for the document_id in question to get the object
-    document = db.session.query(Document).filter_by(id = document_id)[0]
-    
-    if form.validate_on_submit():
-        # take new document
-        # edit document parameters
-        # index [0], which is the row in question for document name
-        document.document_name = form.document_name.data
-        document.document_body = form.document_body.data
+    # run route function if permission condition satisfied
+    if permission.can():
 
-        # commit changes
-        db.session.commit()
+        # new document form
+        form = DocumentForm()
 
-        # redirect to document list after change
-        return redirect(url_for('editor_bp.documentlist_editor'))
+        # Getting the Document Object
+        # query for the document_id in question to get the object
+        document = db.session.query(Document).filter_by(id = document_id)[0]
+        
+        if form.validate_on_submit():
+            # take new document
+            # edit document parameters
+            # index [0], which is the row in question for document name
+            document.document_name = form.document_name.data
+            document.document_body = form.document_body.data
+
+            # commit changes
+            db.session.commit()
+
+            # redirect to document list after change
+            return redirect(url_for('editor_bp.documentlist_editor'))
 
 
-    return render_template(
-        'documentedit_editor.jinja2',
-        form=form,
-        document=document,
-        )
+        return render_template(
+            'documentedit_editor.jinja2',
+            form=form,
+            document=document,
+            )
 
+    # abort if permission not satisfied
+    # should send back to dashboard
+    abort(403)
 
 # ---------- Page Access Restrictions ----------
 

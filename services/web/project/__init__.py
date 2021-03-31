@@ -11,7 +11,7 @@ from .assets import compile_static_assets
 # Importing Flask Principal
 from flask_principal import identity_loaded, Principal, Permission, UserNeed, RoleNeed
 # individual document access permission
-from .principalmanager import SponsorDocumentNeed, SponsorEditDocumentNeed
+from .principalmanager import EditDocumentNeed
 
 # for printing to console
 import sys
@@ -132,13 +132,29 @@ def on_identity_loaded(sender, identity):
                 # loop through document objects and append to list
                 document_id_list.append(document_objects[counter].document_id)
                 # provide the need mapping to the document for each document
-                identity.provides.add(SponsorEditDocumentNeed(str(document_objects[counter].document_id)))
+                identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
             # after for loop, show document id's appended to needs
             print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
         # if current_user_type is editor
         elif current_user_type == 'editor':
             # add editor_role, RoleNeed to needs
-            needs.append(editor_role)      
+            needs.append(editor_role)
+            # query user's documents, filter documents by current sponsor user
+            # printing the fact that we are querying db
+            print('Querying Database for document_ids!', file=sys.stderr)
+            document_objects = db.session.query(Retention.editor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.editor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.editor_id).filter(Retention.editor_id == current_user.id)
+            # get a count of the document objects
+            document_count = document_objects.count()
+            # blank list to fill with documentid's
+            document_id_list=[]
+            # loop through document objects to generate filled document_id_list
+            for counter in range(0,document_count):
+                # loop through document objects and append to list
+                document_id_list.append(document_objects[counter].document_id)
+                # provide the need mapping to the document for each document
+                identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
+            # after for loop, show document id's appended to needs
+            print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
 
         # print everything appended to needs, documents and others
         print('appended to needs : ',needs, file=sys.stderr)

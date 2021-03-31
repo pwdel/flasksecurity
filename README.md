@@ -1169,7 +1169,7 @@ def sponsor_page_not_found(e):
     return redirect(url_for('auth_bp.login'))
 ```
 
-#### Protecting Individual Assets by User Number
+#### Protecting Individual Assets by User Number - Sponsor Side
 
 Protecting Individual Assets by User Number gets a little more fine-grained, in that if we are a sponsor, we can still view other sponsor documents, and if we are an editor, we can still see other editor documents under:
 
@@ -1420,6 +1420,104 @@ def edit_post(post_id):
 So evidently some kind of, "if permission.can()" function is needed, in lieu of the decorator.
 
 After activating this, including the abort(403) after our main logic, it works, sending the user back to their dashboard per our 403 error.
+
+#### Protecting Individual Assets by User Number - Editor Side
+
+While writing the above permissions aimed at sponsors, I assumed that there would need to be two different permission functions for two different user types - editors and sponsors.
+
+Now I can look at the first section of code written for sponsors and determine if there is some code repeatability that can be built-in.
+
+Here are the main elements that have been built using flask-principal to make this work...basically put:
+
+* DocumentNeed
+* EditNeed
+* Permission
+
+DocumentNeed is the most fundamental, with input, 'sponsor_document' being arbitrary, and it could be written as follows:
+
+```
+SponsorDocumentNeed = namedtuple('document', ['method', 'value'])
+```
+EditNeed inherits from SponsorDocumentNeed and is used in __init__.py, there is nothing sponsor-specific about EditNeed.
+
+Finally, EditDocumentPermission() is called in the route.py, defined in principalmanager.py and is not toucehd in __init__.py.  The only input here is document_id, and there is nothing specific to the sponsor.  I can go through and re-write everything, coming up with:
+
+```
+principalmanager.py
+
+# Individual Document Permissions
+# create named tuple for custom permission for accessing individual documents
+DocumentNeed = namedtuple('document', ['method', 'value'])
+# partial function, freezing 'document' as the method
+EditDocumentNeed = partial(DocumentNeed, 'document')
+
+class EditDocumentPermission(Permission):
+    def __init__(self, document_id):
+    	# format input of document_id as a string
+    	# input to partial function, "SponsorDocumentNeed" which has pre-filled input, "sponsor" as method
+        need = EditDocumentNeed(str(document_id))
+        # give capability to call this method from other classes with, "super"
+        super(EditDocumentPermission, self).__init__(need)
+
+-----
+
+ __init__.py
+
+from .principalmanager import EditDocumentNeed
+
+...
+
+identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
+
+-----
+
+routes.py
+
+from .principalmanager import EditDocumentPermission
+
+...
+
+permission = EditDocumentPermission(document_id)
+
+
+```
+After making the above edits, the code itself still works flawlessly. Hence, I can use the same set of DocumentNeed, EditNeed and Permission for the editor user_type version of the code, because it's now generalized in natural language.
+
+One tweak that is needed in the __init__.py file to ensure that the functionality works is to change the database lookup.  Basically, since the app is now looking up the editor rather than the sponsor, the query should now look like the following:
+
+```
+document_objects = db.session.query(Retention.editor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.editor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.editor_id).filter(Retention.editor_id == current_user.id)
+
+```
+Since this is an editor, there should be an expanded list of documents specifically assigned to that editor which get listed in the document_id needs, as shown below:
+
+```
+flask  | Querying Database for user_type!
+flask  | Providing ID:  1  ...to Identity
+flask  | Providing Role:  editor  ...to Identity
+flask  | Querying Database for document_ids!
+flask  | appended document_ids to needs :  [1, 2, 3, 4]
+flask  | appended to needs :  [Need(method='role', value='editor')]
+flask  | 172.20.0.1 - - [31/Mar/2021 17:44:46] "GET /editor/documents HTTP/1.1" 200 -
+```
+To finalize this, since we no longer have to write any new code under principalmanager.py, we just have to protect the editor individual document route the same way I did with the sponsor individual document routes.
+
+```
+    # setup permission for individual document_id
+    permission = EditDocumentPermission(document_id)
+
+    # run route function if permission condition satisfied
+    if permission.can():
+
+    	# stuff
+
+    # abort if permission not satisfied
+    # should send back to dashboard
+    abort(403)
+
+```
+After I checked whether this work...I found that it does!
+
 
 #### Flask-Principal Documentation - IdentityContext
 
