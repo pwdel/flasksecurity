@@ -11,6 +11,8 @@ from . import sponsor_permission, editor_permission
 from flask_principal import Identity, identity_changed, AnonymousIdentity
 # for printing system messages
 import sys
+# individual document access permission
+from .principalmanager import SponsorEditDocumentPermission
 
 
 # Blueprint Configuration
@@ -175,55 +177,63 @@ def documentlist_sponsor():
 @sponsor_permission.require(http_exception=403)
 def documentedit_sponsor(document_id):
 
-    # new document form
-    form = DocumentForm()
+    # setup permission for individual document_id
+    permission = SponsorEditDocumentPermission(document_id)
 
+    # run route function if permission condition satisfied
+    if permission.can():
 
-    # Getting the Document Object
-    # query for the document_id in question to get the object
-    document = db.session.query(Document).filter_by(id = document_id)[0]
+        # new document form
+        form = DocumentForm()
 
-    # Getting the Retention Object to Filter  for Editor ID
-    # join query to get and display current editor id via the retention object
-    retention_object = db.session.query(Retention).join(User, User.id == Retention.editor_id).filter(Retention.document_id == document_id)[0]
-    # get current editor_id from retention object
-    current_editor_id = retention_object.editor_id
-    
-    # Getting the Editor Object
-    # use this current editor object
-    current_editor_object = db.session.query(User).filter(User.id == current_editor_id)[0]
-    # simplify variable name to pass to view
-    editor = current_editor_object
+        # Getting the Document Object
+        # query for the document_id in question to get the object
+        document = db.session.query(Document).filter_by(id = document_id)[0]
 
-    # display choices from list of editors
-    form.editorchoice.query = User.query.filter(User.user_type == 'editor')
+        # Getting the Retention Object to Filter  for Editor ID
+        # join query to get and display current editor id via the retention object
+        retention_object = db.session.query(Retention).join(User, User.id == Retention.editor_id).filter(Retention.document_id == document_id)[0]
+        # get current editor_id from retention object
+        current_editor_id = retention_object.editor_id
+        
+        # Getting the Editor Object
+        # use this current editor object
+        current_editor_object = db.session.query(User).filter(User.id == current_editor_id)[0]
+        # simplify variable name to pass to view
+        editor = current_editor_object
 
-    if form.validate_on_submit():
-        # take new document
-        # edit document parameters
-        # index [0], which is the row in question for document name
-        document.document_name = form.document_name.data
-        document.document_body = form.document_body.data
+        # display choices from list of editors
+        form.editorchoice.query = User.query.filter(User.user_type == 'editor')
 
-        # grab the selected_editor_id from the form
-        selected_editor_id=int(form.editorchoice.data.id)
+        if form.validate_on_submit():
+            # take new document
+            # edit document parameters
+            # index [0], which is the row in question for document name
+            document.document_name = form.document_name.data
+            document.document_body = form.document_body.data
 
-        # add new retention
-        retention_object.editor_id = selected_editor_id
+            # grab the selected_editor_id from the form
+            selected_editor_id=int(form.editorchoice.data.id)
 
-        # commit changes
-        db.session.commit()
+            # add new retention
+            retention_object.editor_id = selected_editor_id
 
-        # redirect to document list after change
-        return redirect(url_for('sponsor_bp.documentlist_sponsor'))
+            # commit changes
+            db.session.commit()
 
+            # redirect to document list after change
+            return redirect(url_for('sponsor_bp.documentlist_sponsor'))
 
-    return render_template(
-        'documentedit_sponsor.jinja2',
-        form=form,
-        document=document,
-        editor=editor
-        )
+        return render_template(
+            'documentedit_sponsor.jinja2',
+            form=form,
+            document=document,
+            editor=editor
+            )
+
+    # abort if permission not satisfied
+    # should send back to dashboard
+    abort(403)
 
 
 
