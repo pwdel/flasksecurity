@@ -6,16 +6,16 @@ from functools import partial
 
 # Individual Document Permissions
 # create named tuple for custom permission for accessing individual documents
-SponsorDocumentNeed = namedtuple('sponsor_document', ['method', 'value'])
+DocumentNeed = namedtuple('document', ['method', 'value'])
 # partial function, freezing 'document' as the method
-SponsorEditDocumentNeed = partial(SponsorDocumentNeed, 'document')
+EditDocumentNeed = partial(DocumentNeed, 'document')
 
-class SponsorEditDocumentPermission(Permission):
+class EditDocumentPermission(Permission):
     def __init__(self, document_id):
     	# format input of document_id as a string
     	# input to partial function, "SponsorDocumentNeed" which has pre-filled input, "sponsor" as method
-        need = SponsorEditDocumentNeed(str(document_id))
+        need = EditDocumentNeed(str(document_id))
         # give capability to call this method from other classes with, "super"
-        super(SponsorEditDocumentPermission, self).__init__(need)
+        super(EditDocumentPermission, self).__init__(need)
 
 
