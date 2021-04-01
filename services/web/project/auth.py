@@ -2,20 +2,28 @@
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
 from flask import g, current_app, abort, request
 from flask_login import login_required, current_user, login_user
-from .forms import LoginForm, SignupForm
+from .forms import LoginForm, SignupForm, AdminLoginForm
 from .models import db, User
 from . import login_manager
-from .routes import sponsor_bp, editor_bp
+from .routes import sponsor_bp, editor_bp, admin_bp
 # for identifitaction and permission management
 from flask_principal import Identity, identity_changed
 # for printing system messages
 import sys
-
+# for admin password
+from .adminsettings import ADMIN_USERNAME, ADMIN_PASSWORD
 
 # Blueprint Configuration
 auth_bp = Blueprint(
     'auth_bp', __name__,
     template_folder='templates',
+    static_folder='static'
+)
+
+# Blueprint Configuration
+adminauth_bp = Blueprint(
+    'adminauth_bp', __name__,
+    template_folder='templates_admins',
     static_folder='static'
 )
 
@@ -191,4 +199,35 @@ def signupeditor():
         form=form,
         template='signup-page',
         body="Sign up for a Sponsor account."
+    )
+
+# ---------- admin routes ----------
+
+@adminauth_bp .route('/adminlogin', methods=['GET', 'POST'])
+def adminlogin():
+
+    # login form
+    form = AdminLoginForm()
+
+    # Validate login attempt
+    if form.validate_on_submit():
+        user=1
+        # we don't need a userid, there is only one user.
+        # check password against our environmental variable
+        if ADMIN_PASSWORD==form.password.data:
+            login_user(user)
+            # send to next page
+            next_page = request.args.get('next')
+            return redirect(url_for('admin_bp.dashboard_admin'))
+
+        # otherwise flash invalid username/password combo
+        flash('Invalid username/password combination')
+        return redirect(url_for('adminauth_bp.adminlogin'))
+    
+    return render_template(
+        'login_admin.jinja2',
+        form=form,
+        title='Log in.',
+        template='login-page',
+        body="Log in with administration credentials."
     )

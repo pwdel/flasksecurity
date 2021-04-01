@@ -59,6 +59,19 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Log In')
 
+# admin login form
+class AdminLoginForm(FlaskForm):
+    """User Log-in Form."""
+    username = StringField(
+        'Username',
+        validators=[
+            DataRequired(),
+            Email(message='Enter Username.')
+        ]
+    )
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Log In')
+
 
 # define user_query in order for QuerySelectField query_factory to work
 def user_query():

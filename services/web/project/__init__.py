@@ -70,6 +70,9 @@ def create_app():
         app.register_blueprint(auth.auth_bp)
         app.register_blueprint(routes.sponsor_bp)
         app.register_blueprint(routes.editor_bp)
+        # admin blueprints
+        app.register_blueprint(auth.adminauth_bp)
+        app.register_blueprint(routes.admin_bp)
 
         # import model class
         from . import models
@@ -84,7 +87,6 @@ def create_app():
 
 # Physically create the app now
 app = create_app()
-
 
 # Identity Loading Factory from flask_principal
 # identity_loaded adds any additional information to the Identity instance such as roles.
@@ -162,8 +164,6 @@ def on_identity_loaded(sender, identity):
 
         for n in needs:
             identity.provides.add(n)
-
-
 
 
 # create shell context processor

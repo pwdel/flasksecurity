@@ -37,6 +37,12 @@ editor_bp = Blueprint(
     static_folder='static'
 )
 
+# Blueprint Configuration
+admin_bp = Blueprint(
+    'admin_bp', __name__,
+    template_folder='templates_admins',
+    static_folder='static'
+)
 
 # when any user goes to /, they get redirected to /login
 @main_bp.route('/', methods=['GET'])
@@ -355,3 +361,7 @@ def sponsor_page_not_found(e):
 def sponsor_page_not_found(e):
     # note that we set the 404 status explicitly
     return redirect(url_for('auth_bp.login'))
+
+
+# ---------- Admin Dashboard ----------
+

@@ -1599,23 +1599,315 @@ Basically, we can just eliminate the "redirect()" functions and do nothing for t
 
 ## Flask Admin
 
+### Objective
+
+The purpose of an admin panel within this app would be primarily to approve and deny users. The crux of this step of the application building process is to focus on security and permissions. A crucial part of security and permissions is being able to have a high-level account which can provide or deny access.
+
+### About flask-admin
+
+Flask admin appears to be an out-of-the-box administrative view with ready-made views including a toolbar as well as callable functions to allow navigation menus to be created. From a brief review, it appears to include:
+
+* Included permissions (which we don't necessarily need because we're using Flask-Principal, if we want to build our own)
+* URL generation, rending of templates
+* Model views
+* Set ways of managing files, structures and folders
+* Redis Console
+* WYSIWIG Text Fields
+* File and Image Fields
+* The ability to manage geographical information / GIS.
+* Customization of some build-in forms.
+* SQLAlchemy 0.6+ support.
+
+While I could build my own admin file, it's likely there are some elements of building an admin in general that others have thought about which will be included in this flask-admin module, so it's reasonable to at least want to try it out.
+
+### Considerations
+
+To build an admin panel, there are several considerations, as we are essentially creating a new type of user.
+
+* Model
+* Application Structure, Templates
+* Authorization
+* Authentication
+* Routes
+* Views/Blueprints
 
 
+### Previous Work to Review
+
+Previous documentation and tutorials exist showing how to use flask-admin:
+
+* [Flask Admin API](https://flask-admin.readthedocs.io/en/latest/api/)
+* [Flask Admin Overall Documentation](https://flask-admin.readthedocs.io/en/latest/)
+* [Installing Flask Admin](https://subscription.packtpub.com/book/web_development/9781783983360/6/ch06lvl1sec40/installing-flask-admin)
+* [Developer Paper - flask-admin](https://developpaper.com/flask-admin-fast-building-blog-series-1/)
+* [Build a Secure Admin Interface](https://ckraczkowsky.medium.com/building-a-secure-admin-interface-with-flask-admin-and-flask-security-13ae81faa05)
+* [Eat at Joe's Flask Admin](https://mrjoes.github.io/2015/06/17/flask-admin-120.html)
+* [How I Built an Admin Dashboard with Python Flask](https://soshace.com/how-i-built-an-admin-dashboard-with-python-flask/)
+
+#### Updating the Model
+
+One of the existing tutorials I'm reviewing above, the, "* [Build a Secure Admin Interface](https://ckraczkowsky.medium.com/building-a-secure-admin-interface-with-flask-admin-and-flask-security-13ae81faa05)
+," mentions creating a helper table with various user types being able to contain different levels of users.
+
+In our situation, secondary user types, sponsors and editors, will never have admin access. Admin access is essentially a way of controlling the website overall, including direct access to the database.  Admin is a tool that helps the web developer control the variety of tools that control the website as a whole, and provides or rejects user access, or grants new different types of permissions.
+
+Therefore, the safest way to design the app is to actually create a completely different user table for admins.
+
+Using [DbDesigner.net](https://app.dbdesigner.net) I can re-draw the relational database structure.
+
+Basically, I can just start off with a new Class called an, "admin" which has an id, username and password, and build a login interface for said admin.
+
+The admin's username and password could be set as environmental variables, similar to how an API key might be stored or communicated on a server.
+
+![New Database Design](/readme_img/admindatabasedesign.png)
+
+The Admin User Object is essentially a simplified version of the User object, and includes UserMixin requirements as well as login sub-functions.
+
+```
+"""Admin User Object"""
+class Admin(db.Model):
+    """User account model."""
+
+    __tablename__ = 'admins'
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+    username = db.Column(
+        db.String(40),
+        unique=True,
+        nullable=False
+    )
+    password = db.Column(
+        db.String(200),
+        primary_key=False,
+        unique=False,
+        nullable=False
+    )
+
+    """UserMixin requirements from flask-login"""
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        try:
+            return text_type(self.id)
+        except AttributeError:
+            raise NotImplementedError('No `id` attribute - override `get_id`')
+
+    """Password Check Functions"""
+    def set_password(self, password):
+        """Create hashed password."""
+        self.password = generate_password_hash(
+            password,
+            method='sha256'
+        )
+
+    def check_password(self, password):
+        """Check hashed password."""
+        return check_password_hash(self.password, password)
+```
+
+#### Blueprints and App Structure
+
+Currently, the app structure includes:
+
+```
+
+├── other stuff
+
+└── project
+
+	├── ~ other stuff, static, templates, templates_editors, templates_sponsors, etc.
+
+	└── templates_admin
+
+		├── login_admin.jinja2
+
+		├── dashboard_admin.jinja2
+
+		└── other_admin.jinja2 ~ etc.
+
+```
+At this point the app structure should include some kind of login, and some kind of dashboard, but it's not clear what else might be needed.
+
+The blueprints have to then be registered under __init__.py:
+
+```
+        # admin blueprints
+        app.register_blueprint(auth.adminauth_bp)
+        app.register_blueprint(routes.admin_bp)
+
+```
+On auth.py:
+
+```
+# Blueprint Configuration
+adminauth_bp = Blueprint(
+    'adminauth_bp', __name__,
+    template_folder='templates_admins',
+    static_folder='static'
+)
+
+```
+
+On routes.py:
+
+```
+# Blueprint Configuration
+admin_bp = Blueprint(
+    'admin_bp', __name__,
+    template_folder='templates_admins',
+    static_folder='static'
+)
 
 
+```
 
 
+#### Authorization with Environmental Variables
+
+So what do we do if we want to store a username and password as an environmental variable?  We can set this up in the config.py file.
+
+```
+# administrative username and password for development
+    ADMIN_USERNAME = 'admin'
+    ADMIN_PASSWORD = 'password'
+    # for production
+    # ADMIN_USERNAME = 'environ.get('ADMIN_USERNAME')
+    # ADMIN_PASSWORD = 'environ.get('ADMIN_PASSWORD')
+    
+```
+
+Note the above username/password meant for production need to be un-commented in order to work in a production mode.
+
+The way to read the admin username and password from the app is via:
+
+```
+>>> app.config['ADMIN_USERNAME']
+'admin'
+>>> app.config['ADMIN_PASSWORD']
+'password'    
+```
+We can set these as variables and then write them to the Admin user object in the database.  However, the more I think about it - the less it makes sense to even write a user type, "admin" to the database at all.  If anyone gains access to our database, through any means, it could mean that they gain access to our administrative server.
+
+Instead, it would be better to perhaps create an authentication and login that simply compares the value entered in the form by an admin user on the website to the environmental variable stored directly on the server.
+
+#### Authentication & Login
+
+Before we log in, we have to have a user in the database, of some kind - perhaps an Admin type user in a seperate table to keep the user type completely separate.
+
+Whatever method I use, I can write a function to seed the database with that user who has a password based upon the password given as an environmental variable  Roughly:
+
+```
+# initiate app
+
+# form database schema
+
+# seed database with first user, type 'admin'
+
+# username pulled from username environmental variable
+
+# password pulled from password environmental variable and stored as encrypted password in database
+
+```
+
+We can set up a new route within the auth.py file.  Roughly, our route will:
+
+* call the login form
+* validate login attempt
+* check password
+* login user
+* redirect to appropriate page
 
 
+##### AdminLoginForm vs. LoginForm
+
+Within the auth.py file, for a new admin login route that we're creating, we need a new form that asks for a username and a password, rather than an email and a password, so we need to create a new form, "AdminLoginForm."
+
+```
+# admin login form
+class AdminLoginForm(FlaskForm):
+    """User Log-in Form."""
+    username = StringField(
+        'Username',
+        validators=[
+            DataRequired(),
+            Email(message='Enter Username.')
+        ]
+    )
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Log In')
+```
+##### The User Class for login_user
+
+To be able to login a user via [login_user](https://github.com/maxcountryman/flask-login/blob/89ce0167a8603d2c53fa2d0d604a20bfe03c0eaf/flask_login/utils.py#L145), we have to have a definition of what a user is through a class.  Basically, what the login_user github source code says is:
+
+```
+ Logs a user in. You should pass the actual user object to this. If the
+    user's `is_active` property is ``False``, they will not be logged in
+    unless `force` is ``True``.
+    This will return ``True`` if the log in attempt succeeds, and ``False`` if
+    it fails (i.e. because the user is inactive).
+
+```
+
+Originally, we had set our Admin User Object in the models.py file to include all of the basics that a user variety of class would include:
+
+```
+"""Admin User Object"""
+class Admin(db.Model):
+```
+
+Even though the user is not the User class, perhaps using the Admin class would work in this instance.  We could seed a sample Admin into the database, and allow that Admin to login given the password credentials, without needing to store the password in the database.  Or, we could encrypt our password and store it that way.
+
+The documentation for [flask-login about login_user](https://flask-login.readthedocs.io/en/latest/#flask_login.login_user) shows similar information to [login_user Github Source code](https://github.com/maxcountryman/flask-login/blob/89ce0167a8603d2c53fa2d0d604a20bfe03c0eaf/flask_login/utils.py#L145).
+
+Per the Github source code, flask_login expects user objects to [have a certain set of properties](https://github.com/maxcountryman/flask-login/blob/89ce0167a8603d2c53fa2d0d604a20bfe03c0eaf/flask_login/mixins.py#L12).
 
 
+##### Login Logic
 
+```
+@adminauth_bp .route('/adminlogin', methods=['GET', 'POST'])
+def adminlogin():
 
+    # login form
+    form = AdminLoginForm()
 
+    # Validate login attempt
+    if form.validate_on_submit():
+        user=1
+        # we don't need a userid, there is only one user.
+        # check password against our environmental variable
+        if ADMIN_PASSWORD==form.password.data:
+            login_user(user)
+            # send to next page
+            next_page = request.args.get('next')
+            return redirect(url_for('admin_bp.dashboard_admin'))
 
-
-
-
+        # otherwise flash invalid username/password combo
+        flash('Invalid username/password combination')
+        return redirect(url_for('adminauth_bp.adminlogin'))
+    
+    return render_template(
+        'login_admin.jinja2',
+        form=form,
+        title='Log in.',
+        template='login-page',
+        body="Log in with administration credentials."
+    )
+```
 
 
 
@@ -1865,7 +2157,14 @@ The following will treat slashes non-strictly, if added under the route.  Otherw
 
 Otherwise, explicitly list all slash conditions for each route.
 
+### Setting Up a .env File
+
+Per [this article](https://itnext.io/start-using-env-for-your-flask-project-and-stop-using-environment-variables-for-development-247dc12468be).
+
+
 ## References
+
+### Flask Principal
 
 * [Demystifying Flask Principal](https://jupyterdata.medium.com/a-shot-at-demystifying-flask-principal-dda5aaeb6bc6)
 * [Securing Flask Web Applications](https://smirnov-am.github.io/securing-flask-web-applications/)
@@ -1873,3 +2172,11 @@ Otherwise, explicitly list all slash conditions for each route.
 * [Django vs Flask](https://testdriven.io/blog/django-vs-flask/)
 * [Flask Principal Documentation](https://pythonhosted.org/Flask-Principal/)
 * [Flask Principal Implementation Blog](https://terse-words.blogspot.com/2011/06/flask-extensions-for-authorization-with.html)
+
+### Flask Admin
+
+* [Flask Admin API](https://flask-admin.readthedocs.io/en/latest/api/)
+* [Flask Admin Overall Documentation](https://flask-admin.readthedocs.io/en/latest/)
+* [Installing Flask Admin](https://subscription.packtpub.com/book/web_development/9781783983360/6/ch06lvl1sec40/installing-flask-admin)
+* [Developer Paper - flask-admin](https://developpaper.com/flask-admin-fast-building-blog-series-1/)
+* [Build a Secure Admin Interface](https://ckraczkowsky.medium.com/building-a-secure-admin-interface-with-flask-admin-and-flask-security-13ae81faa05)
