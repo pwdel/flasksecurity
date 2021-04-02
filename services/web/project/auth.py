@@ -2,20 +2,28 @@
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
 from flask import g, current_app, abort, request
 from flask_login import login_required, current_user, login_user
-from .forms import LoginForm, SignupForm
-from .models import db, User
+from .forms import LoginForm, SignupForm, AdminLoginForm
+from .models import db, User, Admin
 from . import login_manager
-from .routes import sponsor_bp, editor_bp
+from .routes import sponsor_bp, editor_bp, admin_bp
 # for identifitaction and permission management
 from flask_principal import Identity, identity_changed
 # for printing system messages
 import sys
-
+# for admin password
+from .adminsettings import ADMIN_USERNAME, ADMIN_PASSWORD
 
 # Blueprint Configuration
 auth_bp = Blueprint(
     'auth_bp', __name__,
     template_folder='templates',
+    static_folder='static'
+)
+
+# Blueprint Configuration - AdminAuth
+adminauth_bp = Blueprint(
+    'adminauth_bp', __name__,
+    template_folder='templates_admins',
     static_folder='static'
 )
 
@@ -81,10 +89,17 @@ def login():
 @login_manager.user_loader
 def load_user(user_id):
     """Check if user is logged-in on every page load."""
+    # login type registered in session
+    login_type = session.get('login_type')
+    # if we actually have a user_id
     if user_id is not None:
-        return User.query.get(user_id)
+        # if the login type is admin
+        if login_type == 'admin':
+            # get the userid through a database query
+            return Admin.query.first()
+        else:
+            return User.query.get(user_id)
     return None
-
 
 @login_manager.unauthorized_handler
 def unauthorized():
@@ -191,4 +206,44 @@ def signupeditor():
         form=form,
         template='signup-page',
         body="Sign up for a Sponsor account."
+    )
+
+# ---------- admin routes ----------
+
+@adminauth_bp.route('/adminlogin', methods=['GET', 'POST'])
+def adminlogin():
+
+    # login form
+    form = AdminLoginForm()
+
+    # Validate login attempt
+    if form.validate_on_submit():
+        # we don't need a userid, there is only one user.
+        # check password against our environmental variable
+        # query for the user based upon the username given in the form
+        admin = Admin.query.filter_by(username=form.username.data).first()
+        # if existing user does not exist, flash message. There's no sign up process.
+        if admin is None:
+            # there is no existing user message
+            flash('There is no existing user.')
+            abort(403)
+        elif (form.username.data==ADMIN_USERNAME and form.password.data==ADMIN_PASSWORD):
+            # set session login_type to admin
+            session['login_type'] = 'admin'
+            # login admin instance
+            login_user(admin)
+            # send to next page
+            next_page = request.args.get('next')
+            return redirect(url_for('admin_bp.dashboard_admin'))
+
+        # otherwise flash invalid username/password combo
+        flash('Invalid Username or Password')
+        return redirect(url_for('adminauth_bp.login_admin'))
+    
+    return render_template(
+        'login_admin.jinja2',
+        form=form,
+        title='Log in.',
+        template='login-page',
+        body="Log in with administration credentials."
     )
