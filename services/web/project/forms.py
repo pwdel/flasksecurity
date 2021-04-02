@@ -65,8 +65,7 @@ class AdminLoginForm(FlaskForm):
     username = StringField(
         'Username',
         validators=[
-            DataRequired(),
-            Email(message='Enter Username.')
+            DataRequired()
         ]
     )
     password = PasswordField('Password', validators=[DataRequired()])

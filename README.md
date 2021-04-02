@@ -1777,7 +1777,7 @@ admin_bp = Blueprint(
 
 #### Authorization with Environmental Variables
 
-So what do we do if we want to store a username and password as an environmental variable?  We can set this up in the config.py file.
+So what do we do if we want to store a username and password as an environmental variable?  We can set this up in the a new, "adminsettings.py" file.
 
 ```
 # administrative username and password for development
@@ -1830,6 +1830,104 @@ We can set up a new route within the auth.py file.  Roughly, our route will:
 * login user
 * redirect to appropriate page
 
+In order to test out whether this works, before creating a fancy, "seed database" function, I can just create it directly within the flask shell or the postgres shell.  Inspecting the database from the postgres shell:
+
+```
+userlevels_flask_dev=# select * from admins;                                                    
+ id | username | password                                                                       
+----+----------+----------                                                                      
+(0 rows)                                
+```
+Attempting to create an admin in the flask shell results in:
+
+```
+>>> admin=Admin(username='admin',password='password')                                           
+Traceback (most recent call last):
+  File "<console>", line 1, in <module>
+NameError: name 'Admin' is not defined
+
+```
+It's necessary to import the Admin class from models.py, which means it's also critical to import this at the top of our, "auth.py" file.
+
+```
+from .models import db, User, Admin
+```
+In order to import all of our models within the flask shell, this has to be done within the __init__.py file, where we create a shell context processor.
+
+```
+# create shell context processor
+from .models import db, Document, User, Retention, Admin
+# python shell context processor
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'User': User, 'Document': Document, 'Retention': Retention, 'Admin': Admin}
+```
+
+After adding this, it is likely that we may have to restart the flask shell (not the entire application) to ensure this gets booted up properly.
+
+Once the Admin class exists within the application context, it's possible to create a transient:
+
+```
+>>> admin=Admin(username='admin',password='password')
+<class 'project.models.Admin'>                                                                  
+>>> admin=Admin(username='admin',password='password')                                           
+>>> admin                                                                                       
+<Admin (transient 140399884340912)>
+```
+Given this, an admin can be manually created in the database as follows (this can be used in the future to help create an initial seeded user upon startup):
+
+```
+# Manually Create User
+# create user object
+admin = Admin(username='admin',password='password')
+# encrypt password
+admin.set_password('password')
+# commit our new user record and log the user in
+db.session.add(admin)
+db.session.commit()  # Commit changes to database
+```
+Once the user is created, after inspection in the postgres shell, it's apparent that the admin instance/transient was created.
+
+The finalized logic which checks the environmental username and password and logs the admin type user in is the following:
+
+```
+@adminauth_bp .route('/adminlogin', methods=['GET', 'POST'])
+def adminlogin():
+
+    # login form
+    form = AdminLoginForm()
+
+    # Validate login attempt
+    if form.validate_on_submit():
+        # we don't need a userid, there is only one user.
+        # check password against our environmental variable
+        # query for the user based upon the username given in the form
+        admin = Admin.query.filter_by(username=form.username.data).first()
+        # if existing user does not exist, flash message. There's no sign up process.
+        if admin is None:
+            # there is no existing user message
+            flash('There is no existing user.')
+        elif (form.username.data==ADMIN_USERNAME and form.password.data==ADMIN_PASSWORD):
+            login_user(admin)
+            # send to next page
+            next_page = request.args.get('next')
+            return redirect(url_for('admin_bp.dashboard_admin'))
+
+        # otherwise flash invalid username/password combo
+        flash('Invalid username/password combination')
+        return redirect(url_for('adminauth_bp.adminlogin'))
+    
+    return render_template(
+        'login_admin.jinja2',
+        form=form,
+        title='Log in.',
+        template='login-page',
+        body="Log in with administration credentials."
+    )
+
+```
+
+Next it is necessary to build a route which will bring the admin over to the dashboard.
 
 ##### AdminLoginForm vs. LoginForm
 
@@ -1876,40 +1974,290 @@ The documentation for [flask-login about login_user](https://flask-login.readthe
 Per the Github source code, flask_login expects user objects to [have a certain set of properties](https://github.com/maxcountryman/flask-login/blob/89ce0167a8603d2c53fa2d0d604a20bfe03c0eaf/flask_login/mixins.py#L12).
 
 
-##### Login Logic
+##### Route for Admin Panel
+
+Once we have the login logic above completed, the route for the admin panel should be as follows:
 
 ```
-@adminauth_bp .route('/adminlogin', methods=['GET', 'POST'])
-def adminlogin():
-
-    # login form
-    form = AdminLoginForm()
-
-    # Validate login attempt
-    if form.validate_on_submit():
-        user=1
-        # we don't need a userid, there is only one user.
-        # check password against our environmental variable
-        if ADMIN_PASSWORD==form.password.data:
-            login_user(user)
-            # send to next page
-            next_page = request.args.get('next')
-            return redirect(url_for('admin_bp.dashboard_admin'))
-
-        # otherwise flash invalid username/password combo
-        flash('Invalid username/password combination')
-        return redirect(url_for('adminauth_bp.adminlogin'))
-    
+@admin_bp.route('/admin/dashboard', methods=['GET','POST'])
+# @login_required
+# @admin_permission.require(http_exception=403)
+def dashboard_admin():
+    """Logged-in User Dashboard."""
     return render_template(
-        'login_admin.jinja2',
-        form=form,
-        title='Log in.',
-        template='login-page',
-        body="Log in with administration credentials."
+        'dashboard_admin.jinja2',
+        title='Admin Dashboard',
+        template='layout',
+        body="Welcome to the Admin Panel."
     )
 ```
 
+In the above, at the time of authoring, there is no, "admin permission" set up, neither is there appropriate login setup for the @login_required logic.  However given a simple jinja2 file with, "Hello World" on it, we get a reroute.
 
+###### Debugging @login_required
+
+Looking at [the documentation for, "login_required" we see the following](https://flask-login.readthedocs.io/en/latest/#flask_login.login_required):
+
+> If you decorate a view with this, it will ensure that the current user is logged in and authenticated before calling the actual view. (If they are not, it calls the LoginManager.unauthorized callback.) For example:
+
+> @app.route('/post')
+> @login_required
+> def post():
+>    pass
+
+The above decorator adds the following code to our routes/views:
+
+```
+if not current_user.is_authenticated:
+    return current_app.login_manager.unauthorized()
+
+```
+From the source code, the [entire decorator function is as follows](https://flask-login.readthedocs.io/en/latest/_modules/flask_login/utils.html#login_required):
+
+```
+    @wraps(func)
+    def decorated_view(*args, **kwargs):
+        if request.method in EXEMPT_METHODS:
+            return func(*args, **kwargs)
+        elif current_app.config.get('LOGIN_DISABLED'):
+            return func(*args, **kwargs)
+        elif not current_user.is_authenticated:
+            return current_app.login_manager.unauthorized()
+        return func(*args, **kwargs)
+    return decorated_view
+```
+So the key seems to be, "current_user" - 
+
+Looking at the source code for current_user under flask_login:
+
+```
+#: A proxy for the current user. If no user is logged in, this will be an
+#: anonymous user
+current_user = LocalProxy(lambda: _get_user())
+```
+So basically, it's a lambda function for "get_user"
+
+The source code for ```_get_user``` is:
+
+```
+def _get_user():
+    if has_request_context() and not hasattr(_request_ctx_stack.top, 'user'):
+        current_app.login_manager._load_user()
+
+    return getattr(_request_ctx_stack.top, 'user', None)
+```
+So basically, it's using 'user' as a default instance, whereas for admin we have created a new instance 'admin' based upon the class 'Admin.'
+
+However, the deeper I go down that rabbit hole, the more code I need to write, to the point where using flask-login starts to not make sense anymore, since I'm essentially rolling my own login manager at this point.  There is a [stackoverflow discussion](https://stackoverflow.com/questions/62225649/flask-login-with-multiple-user-classes-and-sso) which goes through a way to create a login through flask "session.""
+
+```
+from flask import session
+
+@oauth_bp.route('/callback/<provider_name>')
+def oauth_callback(provider_name):
+    if provider_name not in providers.keys():
+        abort(404)
+
+    provider = providers[provider_name]
+    response = provider.authorized_response()
+    session['login_type'] = provider_name
+
+Then read it in load_user, use different user model depend on its value:
+
+from flask import session
+
+@login_manager.user_loader
+def load_user(user_id):
+    login_type = session.get('login_type')
+    if login_type == 'google':
+        return GoogleUser.get(user_id)
+    elif login_type == 'facebook':
+        return FacebookUser.get(user_id)
+    else:
+        return User.query.get(user_id)
+
+```
+
+I can modify this for my own app's purposes as follows:
+
+```
+from flask import session
+
+...
+
+        elif (form.username.data==ADMIN_USERNAME and form.password.data==ADMIN_PASSWORD):
+            # add provider_name to session login_type
+            session['login_type'] = 'admin'
+            # login admin instance
+            login_user(admin)
+            # send to next page
+            next_page = request.args.get('next')
+            return redirect(url_for('admin_bp.dashboard_admin'))
+...
+
+```
+Then within auth.py under login_manager, we modify it from:
+
+```
+@login_manager.user_loader
+def load_user(user_id):
+    """Check if user is logged-in on every page load."""
+    if user_id is not None:
+        return User.query.get(user_id)
+    return None
+```
+to:
+
+Then read it in load_user, use different user model depend on its value:
+
+from flask import session
+
+```
+@login_manager.user_loader
+def load_user(user_id):
+    """Check if user is logged-in on every page load."""
+    # login type registered in session
+    login_type = session.get('login_type')
+    # if we actually have a user_id
+    if user_id is not None:
+        # 
+        if login_type == 'admin':
+            return Admin.get(user_id)
+        else:
+            return User.query.get(user_id)
+    return None
+
+```
+
+Upon attempting to login, we get the following error:
+
+```
+
+    File "/usr/src/theapp/project/auth.py", line 98, in load_user
+
+    return Admin.get(user_id)
+
+    AttributeError: type object 'Admin' has no attribute 'get'
+```
+However looking at our model for Admin, we see that we have:
+
+```
+    def get_id(self):
+        try:
+            return text_type(self.id)
+        except AttributeError:
+            raise NotImplementedError('No `id` attribute - override `get_id`')
+```
+So to get this to work, we can change things to:
+
+```
+return db.session.query(Admin.id).first().id
+```
+Which returns an int of the userid.
+
+
+However. there is a different error which pops up, saying that "Admin" is an integer does not have an attribute, "get_id":
+
+Hence, we change the user manager so that it's returning an object <Admin 1> rather than an integer.
+
+```
+return Admin.query.first()
+```
+This error was diagnosed by looking at what current_user really is in more depth:
+
+```
+flask  | Current User:  1
+flask  | Current User Type:  <class 'werkzeug.local.LocalProxy'>
+```
+Which shows that the User Type is a werkzeug object, which must have been getting its object from somewhere.
+
+Once this is solved, we get a different error:
+
+```
+
+    File "/usr/src/theapp/project/__init__.py", line 108, in on_identity_loaded
+
+    current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+    File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2549, in __getitem__
+
+    return orm_util._getitem(
+
+    File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/util.py", line 1955, in _getitem
+
+    return list(iterable_query[item : item + 1])[0]
+
+    IndexError: list index out of range
+
+```
+This error actually deals with permissioning, which was built earlier in this readme file.  Basically the assumption is that on every single pass through __init__.py, the permissions get checked via the current_user object.
+
+That being said, as with the login manager, it could be possible to check the login type we just created with:
+
+```
+    login_type = session.get('login_type')
+```
+Once this is cleared, with a proper if statement, the admin user is allowed to login.  However, there is no logout option, so if the admin is logged in, they can't log out and log back in as a user.
+
+#### admin Logout
+
+The following logout gets added to routes.py:
+
+```
+@adminauth_bp.route("/admin/logout")
+def logoutadmin():
+    """User log-out logic."""
+    logout_user(admin)
+
+    return redirect(url_for('adminauth_bp.adminlogin'))
+```
+
+Then a link added to the template:
+
+```
+  <div>
+    </div>
+      <a href="{{ url_for('sponsor_bp.logoutsponsor') }}">Log Out.</a>
+    </div>
+  <div>
+
+```
+
+After clicking this logout, we get the following error upon visiting the /login page.
+
+```
+IndexError
+
+IndexError: list index out of range
+
+
+File "/usr/src/theapp/project/auth.py", line 45, in login
+
+ [Open an interactive python shell in this frame] current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+```
+
+This was because we had functions and templates pointing the wrong way in our program.  Once the correct links were cleared up everything was fine.
+
+#### Troubleshooting "login_type is admin"
+
+So once we have everything working perfectly for the Admin class and are able to log in and log out, I went in and tested some of our previous pages, namely - signing up as a sponsor.
+
+When I attempted this, I got a continuous message:
+
+```
+flask  | login_type is admin
+```
+Within the logoutadmin() function, we had set the l
+
+```
+    # set session login type to admin
+    session['login_type'] = 'admin'
+```
+
+Which may not have been needed.  However, even if we delete this, we get the same problem.  Somehow login_type is being set to admin permanently instead of, "user."
+
+Also
 
 ## Reviewing Flask Security Considerations
 

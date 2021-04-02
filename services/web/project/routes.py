@@ -1,7 +1,7 @@
 """Logged-in page routes."""
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
 from flask import g, current_app, abort, request
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, LoginManager
 from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
@@ -365,3 +365,28 @@ def sponsor_page_not_found(e):
 
 # ---------- Admin Dashboard ----------
 
+@admin_bp.route('/admin/dashboard', methods=['GET','POST'])
+# @admin_permission.require(http_exception=403)
+def dashboard_admin():
+    print('Current User: ',current_user, file=sys.stderr)
+    print('Current User Type: ',type(current_user), file=sys.stderr)
+    # checking login capability - login required
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    """Logged-in Admin Dashboard."""
+
+    return render_template(
+        'dashboard_admin.jinja2',
+        title='Admin Dashboard',
+        template='layout',
+        body="Welcome to the Admin Panel."
+    )
+
+@admin_bp.route("/admin/logout")
+def logoutadmin():
+    """User log-out logic."""
+    # logout admin instance
+    logout_user()
+    # LoginManager(admin)._clear_cookie()
+
+    return redirect(url_for('adminauth_bp.adminlogin'))
