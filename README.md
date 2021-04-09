@@ -2248,7 +2248,7 @@ When I attempted this, I got a continuous message:
 ```
 flask  | login_type is admin
 ```
-Within the logoutadmin() function, we had set the l
+Within the logoutadmin() function, we had set the session type as admin.
 
 ```
     # set session login type to admin
@@ -2257,7 +2257,10 @@ Within the logoutadmin() function, we had set the l
 
 Which may not have been needed.  However, even if we delete this, we get the same problem.  Somehow login_type is being set to admin permanently instead of, "user."
 
-Also
+If the login type is set to, "user" within the __init__.py file, then login works for user.  This brings up the question as to whether the if/else statment asking for login type is even needed.  Eliminating that type, and eliminating all references to login type...
+
+
+
 
 ## Reviewing Flask Security Considerations
 
