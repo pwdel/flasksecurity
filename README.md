@@ -195,7 +195,7 @@ Alternatively:
 ```
 @app.route('/sponsor/dashboard/')
 def dashboard():
-	with sponsor_permission.require(http_exception=403)
+    with sponsor_permission.require(http_exception=403)
 
 ```
 
@@ -474,7 +474,7 @@ import sys
 
 ...
 
-			# user should already have a type since they logged-in in the past
+            # user should already have a type since they logged-in in the past
             # use identity_changed to send signal to flask_principal showing identity, user_type
             identity_changed.send(current_app._get_current_object(), identity=Identity(user.user_type))
             # placing identity_object into variable for print/display
@@ -496,7 +496,7 @@ From the [Flask-Principal documentation](https://pythonhosted.org/Flask-Principa
  class flask_principal.Identity(id, auth_type=None)
 
     Represent the user’s identity.
-    Parameters:	
+    Parameters: 
 
         id – The user id
         auth_type – The authentication type used to confirm the user’s identity.
@@ -769,28 +769,28 @@ def on_identity_loaded(sender, identity):
 
     # For a given user type...
     # Add the needs to the identity based upon our logic
- 		# some kind of logic setting up needs with each user
+        # some kind of logic setting up needs with each user
 
 ```
 We have to add some kind of logic below which attaches the needs to the 
 
 ```
-	# this is set up in such a way that multiple needs can be added to the same user
-	needs = []
-	# append sponsor and editor roles depending upon user
-	# if current_user_type is sponsor
-	if current_user_type == 'sponsor':
-		# add sponsor_role, RoleNeed to needs
-		needs.append(sponsor_role)
-	# if current_user_type is editor
-	elif current_user_type == 'editor':
-		# add editor_role, RoleNeed to needs
-		needs.append(editor_role)
-		
-	print('appended to needs : ',needs, file=sys.stderr)
-	# add all of the listed needs to current_user
-	for n in needs:
-		g.identity.provides.add(n)
+    # this is set up in such a way that multiple needs can be added to the same user
+    needs = []
+    # append sponsor and editor roles depending upon user
+    # if current_user_type is sponsor
+    if current_user_type == 'sponsor':
+        # add sponsor_role, RoleNeed to needs
+        needs.append(sponsor_role)
+    # if current_user_type is editor
+    elif current_user_type == 'editor':
+        # add editor_role, RoleNeed to needs
+        needs.append(editor_role)
+        
+    print('appended to needs : ',needs, file=sys.stderr)
+    # add all of the listed needs to current_user
+    for n in needs:
+        g.identity.provides.add(n)
 
 ```
 Once those needs are added, decorations can be added to function to approve or deny access.
@@ -934,7 +934,7 @@ Note that the attribute input must be a string. So we can build a conditional st
 
 ```
 if hassattr(current_user,'id'):
-	# do the database lookup and user 
+    # do the database lookup and user 
 
 ```
 So our final logic looks like the following:
@@ -1205,11 +1205,11 @@ def documentedit_sponsor(document_id):
 ```
 ...
 def documentedit_sponsor(document_id):
-	permission = SponsorEditDocumentPermission(document_id)
+    permission = SponsorEditDocumentPermission(document_id)
 
-	if permission.can():
-		# do the edit
-		return render_template( stuff )
+    if permission.can():
+        # do the edit
+        return render_template( stuff )
 
 ```
 In this case, the function is not a decorator but a regular function call.
@@ -1292,15 +1292,15 @@ This will be done something along the lines of the following:
 
 ```
 def on_identity_loaded(sender, identity):
-	...
+    ...
 
-	# if we are a sponsor
-		# and if we are in an individual document page that has a document_id
-			# if the user has documents
-				# query the documents list
-				# for document in the current user's documents
-					# add a custom need, an editing/viewing document need to each document
-					identity.provides.add(SponsorEditDocumentNeed(str(document_id)))
+    # if we are a sponsor
+        # and if we are in an individual document page that has a document_id
+            # if the user has documents
+                # query the documents list
+                # for document in the current user's documents
+                    # add a custom need, an editing/viewing document need to each document
+                    identity.provides.add(SponsorEditDocumentNeed(str(document_id)))
 
 ```
 That's a decent amount to digest. Why am I setting things up in this format?  Basically, I want to avoid querying the database too much, basically optimizing database usage, which means only query when we need to get a list of the documents that belong to a particular user.  This is the reason for the, "if we are an individual document page that has a document_id" - I don't even want to make a query if we are not even using this document id.
@@ -1453,8 +1453,8 @@ EditDocumentNeed = partial(DocumentNeed, 'document')
 
 class EditDocumentPermission(Permission):
     def __init__(self, document_id):
-    	# format input of document_id as a string
-    	# input to partial function, "SponsorDocumentNeed" which has pre-filled input, "sponsor" as method
+        # format input of document_id as a string
+        # input to partial function, "SponsorDocumentNeed" which has pre-filled input, "sponsor" as method
         need = EditDocumentNeed(str(document_id))
         # give capability to call this method from other classes with, "super"
         super(EditDocumentPermission, self).__init__(need)
@@ -1509,7 +1509,7 @@ To finalize this, since we no longer have to write any new code under principalm
     # run route function if permission condition satisfied
     if permission.can():
 
-    	# stuff
+        # stuff
 
     # abort if permission not satisfied
     # should send back to dashboard
@@ -1612,6 +1612,20 @@ Documentation and code for this previous branch attempt has been stored [here](h
 The better direction is to simply create a new role, and create permissions for that role in the same way that was done for editor and sponsor. Part of the reason is because some of the existing modules I'm using, such as flask_login, rely on a class called current_user, which requires the user class name to be, "User," and if not, there is a requirement to switch the, "login type" within the session, which gets complicated in terms of it being tricky to sort for the, "session user type" based upon what dashboard a user is logging into and out of, and also assigning user-id's to admins and those user-id's being the same as a user, which allows one instance of User to log into the Admin dashboard.
 
 Simpler would be to just go ahead and create another user, an Admin user, with fixed capabilities, username, and password, and without the capability to create another admin, and set permissions digligently for that admin.
+
+### Saved States
+
+Saved design states will be kept at the following branches:
+
+* Clean, raw design state with only editor/user working permissions functionality will be saved at :
+
+https://github.com/pwdel/flasksecurity/tree/sponsoreditorpermissions
+
+
+* Attempt at creating a completely different admin user class functionality, failed will be saved at :
+
+https://github.com/pwdel/flasksecurity/tree/adminuserclass
+
 
 ### Admin Username, Password and Role Creation
 
