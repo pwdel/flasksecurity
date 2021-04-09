@@ -1,10 +1,19 @@
 """Logged-in page routes."""
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
+from flask import g, current_app, abort, request
 from flask_login import current_user, login_required
 from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
+from . import sponsor_permission, editor_permission
+# for identifitaction and permission management
+from flask_principal import Identity, identity_changed, AnonymousIdentity
+# for printing system messages
+import sys
+# individual document access permission
+from .principalmanager import EditDocumentPermission
+
 
 # Blueprint Configuration
 # we define __name__ as the main blueprint, and the templates/static folder.
@@ -32,26 +41,31 @@ editor_bp = Blueprint(
 # when any user goes to /, they get redirected to /login
 @main_bp.route('/', methods=['GET'])
 @login_required
-
+# redirect to login page if logged in, to be re-routed to appropriate location
+def logindefault():
+    # redirect to login page
+    return redirect(url_for('auth_bp.login'))
 
 # ---------- sponsor user routes ----------
 
 @sponsor_bp.route("/sponsor/logout")
 @login_required
+@sponsor_permission.require(http_exception=403)
 def logoutsponsor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
     return redirect(url_for('auth_bp.login'))
 
 @sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
-
-    # checking if user type is sponsor
-    # ret = sponsor_only()
-    # if( not ret ):
-    #    return ret
-
     """Logged-in User Dashboard."""
     return render_template(
         'dashboard_sponsor.jinja2',
@@ -62,6 +76,7 @@ def dashboard_sponsor():
 
 @sponsor_bp.route('/sponsor/newdocument', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def newdocument_sponsor():
     
     # new document form
@@ -123,6 +138,7 @@ def newdocument_sponsor():
 
 @sponsor_bp.route('/sponsor/documents', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentlist_sponsor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -158,57 +174,66 @@ def documentlist_sponsor():
 
 @sponsor_bp.route('/sponsor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@sponsor_permission.require(http_exception=403)
 def documentedit_sponsor(document_id):
 
-    # new document form
-    form = DocumentForm()
+    # setup permission for individual document_id
+    permission = EditDocumentPermission(document_id)
 
+    # run route function if permission condition satisfied
+    if permission.can():
 
-    # Getting the Document Object
-    # query for the document_id in question to get the object
-    document = db.session.query(Document).filter_by(id = document_id)[0]
+        # new document form
+        form = DocumentForm()
 
-    # Getting the Retention Object to Filter  for Editor ID
-    # join query to get and display current editor id via the retention object
-    retention_object = db.session.query(Retention).join(User, User.id == Retention.editor_id).filter(Retention.document_id == document_id)[0]
-    # get current editor_id from retention object
-    current_editor_id = retention_object.editor_id
-    
-    # Getting the Editor Object
-    # use this current editor object
-    current_editor_object = db.session.query(User).filter(User.id == current_editor_id)[0]
-    # simplify variable name to pass to view
-    editor = current_editor_object
+        # Getting the Document Object
+        # query for the document_id in question to get the object
+        document = db.session.query(Document).filter_by(id = document_id)[0]
 
-    # display choices from list of editors
-    form.editorchoice.query = User.query.filter(User.user_type == 'editor')
+        # Getting the Retention Object to Filter  for Editor ID
+        # join query to get and display current editor id via the retention object
+        retention_object = db.session.query(Retention).join(User, User.id == Retention.editor_id).filter(Retention.document_id == document_id)[0]
+        # get current editor_id from retention object
+        current_editor_id = retention_object.editor_id
+        
+        # Getting the Editor Object
+        # use this current editor object
+        current_editor_object = db.session.query(User).filter(User.id == current_editor_id)[0]
+        # simplify variable name to pass to view
+        editor = current_editor_object
 
-    if form.validate_on_submit():
-        # take new document
-        # edit document parameters
-        # index [0], which is the row in question for document name
-        document.document_name = form.document_name.data
-        document.document_body = form.document_body.data
+        # display choices from list of editors
+        form.editorchoice.query = User.query.filter(User.user_type == 'editor')
 
-        # grab the selected_editor_id from the form
-        selected_editor_id=int(form.editorchoice.data.id)
+        if form.validate_on_submit():
+            # take new document
+            # edit document parameters
+            # index [0], which is the row in question for document name
+            document.document_name = form.document_name.data
+            document.document_body = form.document_body.data
 
-        # add new retention
-        retention_object.editor_id = selected_editor_id
+            # grab the selected_editor_id from the form
+            selected_editor_id=int(form.editorchoice.data.id)
 
-        # commit changes
-        db.session.commit()
+            # add new retention
+            retention_object.editor_id = selected_editor_id
 
-        # redirect to document list after change
-        return redirect(url_for('sponsor_bp.documentlist_sponsor'))
+            # commit changes
+            db.session.commit()
 
+            # redirect to document list after change
+            return redirect(url_for('sponsor_bp.documentlist_sponsor'))
 
-    return render_template(
-        'documentedit_sponsor.jinja2',
-        form=form,
-        document=document,
-        editor=editor
-        )
+        return render_template(
+            'documentedit_sponsor.jinja2',
+            form=form,
+            document=document,
+            editor=editor
+            )
+
+    # abort if permission not satisfied
+    # should send back to dashboard
+    abort(403)
 
 
 
@@ -216,13 +241,21 @@ def documentedit_sponsor(document_id):
 
 @editor_bp.route("/editor/logout")
 @login_required
+@editor_permission.require(http_exception=403)
 def logouteditor():
     """User log-out logic."""
     logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
     return redirect(url_for('auth_bp.login'))
 
 @editor_bp.route('/editor/dashboard', methods=['GET'])
 @login_required
+@editor_permission.require(http_exception=403)
 def dashboard_editor():
     """Logged-in User Dashboard."""
     return render_template(
@@ -234,6 +267,7 @@ def dashboard_editor():
 
 @editor_bp.route('/editor/documents', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentlist_editor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -266,43 +300,58 @@ def documentlist_editor():
 
 @editor_bp.route('/editor/documents/<document_id>', methods=['GET','POST'])
 @login_required
+@editor_permission.require(http_exception=403)
 def documentedit_editor(document_id):
 
-    # new document form
-    form = DocumentForm()
+    # setup permission for individual document_id
+    permission = EditDocumentPermission(document_id)
 
-    # Getting the Document Object
-    # query for the document_id in question to get the object
-    document = db.session.query(Document).filter_by(id = document_id)[0]
-    
-    if form.validate_on_submit():
-        # take new document
-        # edit document parameters
-        # index [0], which is the row in question for document name
-        document.document_name = form.document_name.data
-        document.document_body = form.document_body.data
+    # run route function if permission condition satisfied
+    if permission.can():
 
-        # commit changes
-        db.session.commit()
+        # new document form
+        form = DocumentForm()
 
-        # redirect to document list after change
-        return redirect(url_for('editor_bp.documentlist_editor'))
+        # Getting the Document Object
+        # query for the document_id in question to get the object
+        document = db.session.query(Document).filter_by(id = document_id)[0]
+        
+        if form.validate_on_submit():
+            # take new document
+            # edit document parameters
+            # index [0], which is the row in question for document name
+            document.document_name = form.document_name.data
+            document.document_body = form.document_body.data
+
+            # commit changes
+            db.session.commit()
+
+            # redirect to document list after change
+            return redirect(url_for('editor_bp.documentlist_editor'))
 
 
-    return render_template(
-        'documentedit_editor.jinja2',
-        form=form,
-        document=document,
-        )
+        return render_template(
+            'documentedit_editor.jinja2',
+            form=form,
+            document=document,
+            )
 
+    # abort if permission not satisfied
+    # should send back to dashboard
+    abort(403)
 
 # ---------- Page Access Restrictions ----------
 
-def sponsor_only():
+# ---------- Error Handling ----------
 
-    current_user_id = current_user.id
-    current_user_type = User.query.filter(User.id == current_user_id)[0].user_type
+# Send everything to the login page, don't worry about a message yet.
 
-    if not current_user_type == 'sponsor':
-        flash('You do not have access to view this page.')
-        return redirect(url_for('editor_bp.dashboard_editor'))
+@sponsor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+@editor_bp.errorhandler(403)
+def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
