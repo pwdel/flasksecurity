@@ -1599,7 +1599,30 @@ Basically, we can just eliminate the "redirect()" functions and do nothing for t
 
 ## Flask Admin
 
+### Background
 
+After successfully completing the above section implementing editor and sponsor permissions, I began the long and greuling task of building an administrative panel.  Ultimately, this admin panel was built based upon a house of cards, and this section will go through what that house of cards was, why it was a poor design for what I'm trying to achieve, and what a better direction would be.
+
+Basically, I had concieved of an idea that I thought would be great for building a highly secure login.  Rather than rely on the, "User" class and risking allowing any instance of, "User" accessing the admin panel, I thought creating a completely different, "kind" of User class, an "Admin" class with one instance or perhaps multiple instances of admins having access to the admin dashboard, with a seperate login, would be a great way to keep things completely seperate and even more secure than the standard model, which is to assign roles to users.
+
+While this is technically possible, and hypothetically more secure if done correctly, it takes a huge amount of work to do it right, increasing the codebase, which actually may in fact decrease rather than increase security, particularly since this is a small project with few resources (e.g. just myself at this point).
+
+Documentation and code for this previous branch attempt has been stored [here](https://github.com/pwdel/flasksecurity/tree/adminuserclass).  Some of the views and methodologies from that codebase can be re-adapted.
+
+The better direction is to simply create a new role, and create permissions for that role in the same way that was done for editor and sponsor. Part of the reason is because some of the existing modules I'm using, such as flask_login, rely on a class called current_user, which requires the user class name to be, "User," and if not, there is a requirement to switch the, "login type" within the session, which gets complicated in terms of it being tricky to sort for the, "session user type" based upon what dashboard a user is logging into and out of, and also assigning user-id's to admins and those user-id's being the same as a user, which allows one instance of User to log into the Admin dashboard.
+
+Simpler would be to just go ahead and create another user, an Admin user, with fixed capabilities, username, and password, and without the capability to create another admin, and set permissions digligently for that admin.
+
+### Admin Username, Password and Role Creation
+
+The username and password can still come from an environmental variable, just as we had done with our "adminuserclass" build-out.  Within development mode, a simple shell command can be used to create the user for testing purposes. In production, we could hypothetically do the same, or create a function that automatically creates the first admin user upon deployment.
+
+This can be the only set way to create said user, increasing security by allowing no user registration on the admin side or admin view, only log-in.
+
+### Admin Login
+
+* To ofuscate the fact that an admin even exists, this user could login within the standard login page at the front of the app itself, with nothing prompting nor hinting that an admin exists. Rather, if the appropriate username and password is entered, then the auth.py route can send the user to the appropriate dashboard for the 'admin' type of User.
+* An admin login can be its own route and blueprint, essentially an admin dashboard. Permissions can be set up to prevent other types of users from accessing admin, just as is currently working with, "sponsor" and "editor."
 
 
 
@@ -1864,6 +1887,12 @@ The following will treat slashes non-strictly, if added under the route.  Otherw
 * strict_slashes=False
 
 Otherwise, explicitly list all slash conditions for each route.
+
+
+### Setting Up a .env File
+
+Per [this article](https://itnext.io/start-using-env-for-your-flask-project-and-stop-using-environment-variables-for-development-247dc12468be).
+
 
 ## References
 
