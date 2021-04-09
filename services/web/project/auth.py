@@ -117,6 +117,7 @@ def signupsponsor():
     GET requests serve sign-up page.
     POST requests validate form & user creation.
     """
+
     form = SignupForm()
     # validate if the user filled out the form correctly
     # validate_on_submit is a built-in method
@@ -228,8 +229,7 @@ def adminlogin():
             flash('There is no existing user.')
             abort(403)
         elif (form.username.data==ADMIN_USERNAME and form.password.data==ADMIN_PASSWORD):
-            # set session login_type to admin
-            session['login_type'] = 'admin'
+            # set session login_type does not need to be set to admin
             # login admin instance
             login_user(admin)
             # send to next page

@@ -100,78 +100,75 @@ def on_identity_loaded(sender, identity):
     # basically pass current_user object to identity.user
     identity.user = current_user
 
-    # Check the login type for user vs. admin
+    # Check the login type
     login_type = session.get('login_type')
-    # if login type is admin, do nothing.
-    if login_type == 'admin':
-        print('login_type is admin', file=sys.stderr)
-        # do nothing
-    else:
-        # Add the UserNeed to the identity
-        # ensure current_user has attribute identity "id"
-        if hasattr(current_user, 'id'):
-            # specifically, need to have current_user.id
-            # Query user type given user.id
-            # printing the fact that we are querying db
-            print('Querying Database for user_type!', file=sys.stderr)
-            current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
-            # print userid to console
-            print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
-            # provide userid to identity
-            identity.provides.add(UserNeed(current_user.id))
-            # print user_type to console
-            print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
-            # provide user_type to identity
-            identity.provides.add(RoleNeed(current_user_type))
-            # this is set up in such a way that multiple needs can be added to the same user
-            needs = []
-            # append sponsor and editor roles depending upon user
-            # if current_user_type is sponsor
-            if current_user_type == 'sponsor':
-                # add sponsor_role, RoleNeed to needs
-                needs.append(sponsor_role)
-                # query user's documents, filter documents by current sponsor user
-                # printing the fact that we are querying db
-                print('Querying Database for document_ids!', file=sys.stderr)
-                document_objects = db.session.query(Retention.sponsor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.sponsor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.sponsor_id).filter(Retention.sponsor_id == current_user.id)
-                # get a count of the document objects
-                document_count = document_objects.count()
-                # blank list to fill with documentid's
-                document_id_list=[]
-                # loop through document objects to generate filled document_id_list
-                for counter in range(0,document_count):
-                    # loop through document objects and append to list
-                    document_id_list.append(document_objects[counter].document_id)
-                    # provide the need mapping to the document for each document
-                    identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
-                # after for loop, show document id's appended to needs
-                print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
-            # if current_user_type is editor
-            elif current_user_type == 'editor':
-                # add editor_role, RoleNeed to needs
-                needs.append(editor_role)
-                # query user's documents, filter documents by current sponsor user
-                # printing the fact that we are querying db
-                print('Querying Database for document_ids!', file=sys.stderr)
-                document_objects = db.session.query(Retention.editor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.editor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.editor_id).filter(Retention.editor_id == current_user.id)
-                # get a count of the document objects
-                document_count = document_objects.count()
-                # blank list to fill with documentid's
-                document_id_list=[]
-                # loop through document objects to generate filled document_id_list
-                for counter in range(0,document_count):
-                    # loop through document objects and append to list
-                    document_id_list.append(document_objects[counter].document_id)
-                    # provide the need mapping to the document for each document
-                    identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
-                # after for loop, show document id's appended to needs
-                print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
-            # print everything appended to needs, documents and others
-            print('appended to needs : ',needs, file=sys.stderr)
-            # add all of the listed needs to current_user
-            for n in needs:
-                identity.provides.add(n)
+    print('login_type is: ',login_type,file=sys.stderr)
 
+
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+        # Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database for user_type!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+        # append sponsor and editor roles depending upon user
+        # if current_user_type is sponsor
+        if current_user_type == 'sponsor':
+            # add sponsor_role, RoleNeed to needs
+            needs.append(sponsor_role)
+            # query user's documents, filter documents by current sponsor user
+            # printing the fact that we are querying db
+            print('Querying Database for document_ids!', file=sys.stderr)
+            document_objects = db.session.query(Retention.sponsor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.sponsor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.sponsor_id).filter(Retention.sponsor_id == current_user.id)
+            # get a count of the document objects
+            document_count = document_objects.count()
+            # blank list to fill with documentid's
+            document_id_list=[]
+            # loop through document objects to generate filled document_id_list
+            for counter in range(0,document_count):
+                # loop through document objects and append to list
+                document_id_list.append(document_objects[counter].document_id)
+                # provide the need mapping to the document for each document
+                identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
+            # after for loop, show document id's appended to needs
+            print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
+        # if current_user_type is editor
+        elif current_user_type == 'editor':
+            # add editor_role, RoleNeed to needs
+            needs.append(editor_role)
+            # query user's documents, filter documents by current sponsor user
+            # printing the fact that we are querying db
+            print('Querying Database for document_ids!', file=sys.stderr)
+            document_objects = db.session.query(Retention.editor_id,User.id,Retention.document_id,).join(Retention, User.id==Retention.editor_id).join(Document, Document.id==Retention.document_id).order_by(Retention.editor_id).filter(Retention.editor_id == current_user.id)
+            # get a count of the document objects
+            document_count = document_objects.count()
+            # blank list to fill with documentid's
+            document_id_list=[]
+            # loop through document objects to generate filled document_id_list
+            for counter in range(0,document_count):
+                # loop through document objects and append to list
+                document_id_list.append(document_objects[counter].document_id)
+                # provide the need mapping to the document for each document
+                identity.provides.add(EditDocumentNeed(str(document_objects[counter].document_id)))
+            # after for loop, show document id's appended to needs
+            print('appended document_ids to needs : ',document_id_list, file=sys.stderr)
+        # print everything appended to needs, documents and others
+        print('appended to needs : ',needs, file=sys.stderr)
+        # add all of the listed needs to current_user
+        for n in needs:
+            identity.provides.add(n)
 
 # create shell context processor
 from .models import db, Document, User, Retention, Admin
