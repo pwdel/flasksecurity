@@ -1626,6 +1626,15 @@ https://github.com/pwdel/flasksecurity/tree/sponsoreditorpermissions
 
 https://github.com/pwdel/flasksecurity/tree/adminuserclass
 
+#### About Reverting and Saving States
+
+Informatin on how to revert and save states using Git was found here:
+
+1. [Seeing All Recent Commits on Branches](https://stackoverflow.com/questions/33926874/in-github-is-there-a-way-to-see-all-recent-commits-on-all-branches)
+2. [Git Commit ID](https://stackoverflow.com/questions/29106996/what-is-a-git-commit-id)
+3. [Restore a Previous Version of a Git Commit](https://stackoverflow.com/questions/44727750/how-do-i-restore-a-previous-version-as-a-new-commit-in-git)
+4. [Forcing Git Commands](https://stackoverflow.com/questions/39399804/updates-were-rejected-because-the-tip-of-your-current-branch-is-behind-its-remot)
+
 
 ### Admin Username, Password and Role Creation
 
