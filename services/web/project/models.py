@@ -175,3 +175,56 @@ class Retention(db.Model):
         'Document', 
         back_populates='users'
         )
+
+"""Admin User Object"""
+class Admin(db.Model):
+    """User account model."""
+
+    __tablename__ = 'admins'
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+    username = db.Column(
+        db.String(40),
+        unique=True,
+        nullable=False
+    )
+    password = db.Column(
+        db.String(200),
+        primary_key=False,
+        unique=False,
+        nullable=False
+    )
+
+    """UserMixin requirements from flask-login"""
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        try:
+            return text_type(self.id)
+        except AttributeError:
+            raise NotImplementedError('No `id` attribute - override `get_id`')
+
+    """Password Check Functions"""
+    def set_password(self, password):
+        """Create hashed password."""
+        self.password = generate_password_hash(
+            password,
+            method='sha256'
+        )
+
+    def check_password(self, password):
+        """Check hashed password."""
+        return check_password_hash(self.password, password)
