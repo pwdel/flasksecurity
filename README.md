@@ -1821,7 +1821,75 @@ And we can see above that the user exists, so we can attempt to log in with this
 
 ### Admin Permissions
 
+Viewing the output from the console, the following can be viewed:
+
+```
+flask  | Querying Database for user_type!
+flask  | Providing ID:  1  ...to Identity
+flask  | Providing Role:  admin  ...to Identity
+flask  | appended to needs :  []
+
+```
+
+So, identity assignment already appears to be working, and it may only be a matter of using a decorator assignment to add the proper permissions.
+
+First, to make sure permissions are open, I simply created a new sponsor user and then visited /admin/dashboard - sure enough, I was able to view the dashboard for the admin, even logged in as a sponsor rather than as an admin.
+
 Permissions are handed out via flask_principal on an ongoing basis at the __init__.py function.
+
+For needs,
+
+```
+        print('Querying Database for user_type!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+```
+Admin doesn't have individual documents seperates by individual users, so there is no need to create complex if statements assigning invididual needs to each admin user - there is only one admin user.
+
+These roles are defined at the top of __init__.py, and I can add a new admin permission and role as follows:
+
+```
+# setting up admin permission
+admin_role = RoleNeed('admin')
+# setting up an admin permission
+admin_permission = Permission(admin_role)
+
+```
+
+Having done that, the decorator now has access to the admin role/permission type, assuming it was imported correctly:
+
+```
+from . import sponsor_permission, editor_permission, admin_permission
+
+...
+
+@admin_permission.require(http_exception=403)
+
+```
+
+The above decorator gets added to all relevant admin routes.  After testing with an alternate, sponsor type account, it works, throwing up a forbidden 403 error.  This can of course be handled by a 403 handler within the routes.py file.
+
+```
+
+@admin_bp.errorhandler(403)
+def admin_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+```
+
+### Designing The Admin Dashboard
+
+
 
 
 
