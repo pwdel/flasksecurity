@@ -1667,18 +1667,161 @@ So what do we do if we want to store a username and password as an environmental
 * To ofuscate the fact that an admin even exists, this user could login within the standard login page at the front of the app itself, with nothing prompting nor hinting that an admin exists. Rather, if the appropriate username and password is entered, then the auth.py route can send the user to the appropriate dashboard for the 'admin' type of User.
 * An admin login can be its own route and blueprint, essentially an admin dashboard. Permissions can be set up to prevent other types of users from accessing admin, just as is currently working with, "sponsor" and "editor."
 
+#### Admin Type Login
+
+The crux of the login for any user type is the login validation:
+
+```
+    # Validate login attempt
+    if form.validate_on_submit():
+        
+        ...
+
+            # check user type, if sponsor go to sponsor dashboard
+            if user.user_type=='sponsor':
+                # redirect to sponsor dashboard
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            # if user type is editor, send to editor dashboard
+            elif user.user_type=='editor':
+                # redirect to editor dashboard
+                return redirect(url_for('editor_bp.dashboard_editor'))
+```
+To validate for an admin login, I can simply add:
+
+```
+
+...
+
+            # check user type, if sponsor go to sponsor dashboard
+            if user.user_type=='sponsor':
+                # redirect to sponsor dashboard
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            # if user type is editor, send to editor dashboard
+            elif user.user_type=='editor':
+                # redirect to editor dashboard
+                return redirect(url_for('editor_bp.dashboard_editor'))
+            elif user.user_type=='admin':
+                # redirect to editor dashboard
+                return redirect(url_for('admin_bp.dashboard_admin'))
 
 
 
+```
+Of course the admin user must have the admin type in order for this to work.
+
+#### Admin Bypass Login
+
+Similar to above, the admin user type can bypass login:
+
+```
+    if current_user.is_authenticated:
+        # if current user actually has id, which they all should
+        if hasattr(current_user, 'id'):
+            # get user id number
+            user_id = current_user.id
+            # filter for user to get user type as a string
+            current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+            # based upon user type, route to location
+            if current_user_type=='sponsor':
+                return redirect(url_for('sponsor_bp.dashboard_sponsor'))
+            elif current_user_type=='editor':
+                return redirect(url_for('editor_bp.dashboard_editor'))
+            elif current_user_type=='admin':
+                return redirect(url_for('admin_bp.dashboard_admin'))
+
+```
+
+#### Signing Up Admin Route
+
+There is no sign up for admin - the should only be one way to set up an admin, basically by a direct entry into the database through a shell command (or upon startup using stored environmental variables).
 
 
+#### Admin Blueprints
+
+Above in the auth.py file, the following was added:
+
+```
+    return redirect(url_for('admin_bp.dashboard_admin'))
+```
+This means an admin_bp as well as page views for dashboard_admin should be created, along with a folder.
+
+1. Need to register those blueprints on __init__.py at "app.register_blueprint(routes.admin_bp)"
+2. Add the blueprint to route.py at the top near the editor and sponsor blueprint.
+3. Within auth.py add "from .routes import sponsor_bp, editor_bp, admin_bp"
+
+Hypothetically, if all of the above are in place, then the blueprint shuold work.
+
+#### Simplified Admin Dashboard Page View, route and Admin Logout Logic
+
+The dashboard can be a very simple .jinja2 file with just a logout button to start off with, discussed below.  The route for this can be:
+
+```
+@admin_bp.route('/admin/dashboard', methods=['GET','POST'])
+@login_required
+# @admin_permission.require(http_exception=403)
+def dashboard_admin():
+    """Logged-in User Dashboard."""
+    return render_template(
+        'dashboard_admin.jinja2',
+        title='Admin Dashboard',
+        template='layout',
+        body="Welcome to the Admin Dashboard."
+    )
+```
+
+The Admin dashboard page can be the following:
+
+```
+      <a href="{{ url_for('admin_bp.logoutadmin') }}">Log Out.</a>
+```
+
+However then a route is needed to achieve that logout function.  For now we can create the admin logout route without anything else special, and forgo permissions as we have not builg permissions logic for admin yet.
+
+```
+@admin_bp.route("/admin/logout")
+@login_required
+# @admin_permission.require(http_exception=403)
+def logoutadmin():
+    """User log-out logic."""
+    logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+    return redirect(url_for('auth_bp.login'))
+```
+
+#### Starting Up and Adding Admin User to Test
+
+We do the ol' "sudo docker exec -it flask /bin/bash" and then, "flask shell" to gain entry to the shell.
 
 
+To start off with, before being fancy and using any environmental variables, which would need to be imported into the shell in one way or another, a new user of type admin can be created like so:
 
+```
+user = User(name='Person Admin', email='admin@test.com', organization='WhateverCo', user_type='admin')
+# use our set_password method
+user.set_password('password')
+# commit our new user record and log the user in
+db.session.add(user)
+db.session.commit()  
 
+```
 
+Then to verify that the user has been entered into the database, login to the databse itself to be able to enter in some of the ol' SQL...
 
+```
+---+--------------+------------+------------                                                                                    
+  1 | Person Admin | admin     | admin@test.com 
+```
 
+And we can see above that the user exists, so we can attempt to log in with this user...and everything works as expected!
+
+### Admin Permissions
+
+Permissions are handed out via flask_principal on an ongoing basis at the __init__.py function.
 
 
 

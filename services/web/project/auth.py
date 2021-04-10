@@ -5,7 +5,7 @@ from flask_login import login_required, current_user, login_user
 from .forms import LoginForm, SignupForm
 from .models import db, User
 from . import login_manager
-from .routes import sponsor_bp, editor_bp
+from .routes import sponsor_bp, editor_bp, admin_bp
 # for identifitaction and permission management
 from flask_principal import Identity, identity_changed
 # for printing system messages
@@ -40,6 +40,8 @@ def login():
                 return redirect(url_for('sponsor_bp.dashboard_sponsor'))
             elif current_user_type=='editor':
                 return redirect(url_for('editor_bp.dashboard_editor'))
+            elif current_user_type=='admin':
+                return redirect(url_for('admin_bp.dashboard_admin'))
 
     form = LoginForm()
     # Validate login attempt
@@ -49,7 +51,6 @@ def login():
             login_user(user)
              # send to next page
             next_page = request.args.get('next')
-
             # user should already have a type since they logged-in in the past
             # use identity_changed to send signal to flask_principal showing identity, user_type
             identity_changed.send(current_app._get_current_object(), identity=Identity(user.id,user.user_type))
@@ -57,9 +58,7 @@ def login():
             identity_object = Identity(user.id,user.user_type)
             # printing identity_object to console for verification
             print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
-
             # check user type, if sponsor go to sponsor dashboard
-
             if user.user_type=='sponsor':
                 # redirect to sponsor dashboard
                 return redirect(url_for('sponsor_bp.dashboard_sponsor'))
@@ -67,6 +66,9 @@ def login():
             elif user.user_type=='editor':
                 # redirect to editor dashboard
                 return redirect(url_for('editor_bp.dashboard_editor'))
+            elif user.user_type=='admin':
+                # redirect to editor dashboard
+                return redirect(url_for('admin_bp.dashboard_admin'))
         # otherwise flash invalid username/password combo
         flash('Invalid username/password combination')
         return redirect(url_for('auth_bp.login'))
