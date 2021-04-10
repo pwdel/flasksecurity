@@ -70,6 +70,7 @@ def create_app():
         app.register_blueprint(auth.auth_bp)
         app.register_blueprint(routes.sponsor_bp)
         app.register_blueprint(routes.editor_bp)
+        app.register_blueprint(routes.admin_bp)
 
         # import model class
         from . import models

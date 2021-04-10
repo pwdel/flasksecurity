@@ -37,6 +37,12 @@ editor_bp = Blueprint(
     static_folder='static'
 )
 
+# Blueprint Configuration
+admin_bp = Blueprint(
+    'admin_bp', __name__,
+    template_folder='templates_admins',
+    static_folder='static'
+)
 
 # when any user goes to /, they get redirected to /login
 @main_bp.route('/', methods=['GET'])
@@ -339,6 +345,36 @@ def documentedit_editor(document_id):
     # abort if permission not satisfied
     # should send back to dashboard
     abort(403)
+
+
+# ---------- admin user routes ----------
+
+@admin_bp.route("/admin/logout")
+@login_required
+# @admin_permission.require(http_exception=403)
+def logoutadmin():
+    """User log-out logic."""
+    logout_user()
+    # tell flask principal the user is annonymous
+    identity_changed.send(current_app._get_current_object(),identity=AnonymousIdentity())
+    # print annonymousidentity to console
+    identity_object = AnonymousIdentity()
+    # printing identity_object to console for verification
+    print('Sent: ',identity_object,' ...to current_app', file=sys.stderr)
+    return redirect(url_for('auth_bp.login'))
+
+
+@admin_bp.route('/admin/dashboard', methods=['GET','POST'])
+@login_required
+# @admin_permission.require(http_exception=403)
+def dashboard_admin():
+    """Logged-in User Dashboard."""
+    return render_template(
+        'dashboard_admin.jinja2',
+        title='Admin Dashboard',
+        template='layout',
+        body="Welcome to the Admin Dashboard."
+    )
 
 # ---------- Page Access Restrictions ----------
 
