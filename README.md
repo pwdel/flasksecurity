@@ -1613,6 +1613,11 @@ The better direction is to simply create a new role, and create permissions for 
 
 Simpler would be to just go ahead and create another user, an Admin user, with fixed capabilities, username, and password, and without the capability to create another admin, and set permissions digligently for that admin.
 
+### Objective of Admin Panel
+
+The purpose of an admin panel within this app would be primarily to approve and deny users. The crux of this step of the application building process is to focus on security and permissions. A crucial part of security and permissions is being able to have a high-level account which can provide or deny access.
+
+
 ### Saved States
 
 Saved design states will be kept at the following branches:
@@ -1642,13 +1647,25 @@ The username and password can still come from an environmental variable, just as
 
 This can be the only set way to create said user, increasing security by allowing no user registration on the admin side or admin view, only log-in.
 
-### Admin Login
+#### Authorization with Environmental Variables
+
+So what do we do if we want to store a username and password as an environmental variable? We can set this up in the a new, "adminsettings.py" file.
+
+```
+# administrative username and password for development
+    ADMIN_USERNAME = 'admin'
+    ADMIN_PASSWORD = 'password'
+    ADMIN_TYPE = 'admin'
+    # for production
+    # ADMIN_USERNAME = 'environ.get('ADMIN_USERNAME')
+    # ADMIN_PASSWORD = 'environ.get('ADMIN_PASSWORD')
+    # ADMIN_TYPE = 'environ.get('ADMIN_TYPE')
+```
+
+### Admin Authentication and Login
 
 * To ofuscate the fact that an admin even exists, this user could login within the standard login page at the front of the app itself, with nothing prompting nor hinting that an admin exists. Rather, if the appropriate username and password is entered, then the auth.py route can send the user to the appropriate dashboard for the 'admin' type of User.
 * An admin login can be its own route and blueprint, essentially an admin dashboard. Permissions can be set up to prevent other types of users from accessing admin, just as is currently working with, "sponsor" and "editor."
-
-
-
 
 
 
