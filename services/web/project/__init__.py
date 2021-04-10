@@ -34,6 +34,10 @@ sponsor_permission = Permission(sponsor_role)
 editor_role = RoleNeed('editor')
 # setting up an editor permission
 editor_permission = Permission(editor_role)
+# setting up admin permission
+admin_role = RoleNeed('admin')
+# setting up an admin permission
+admin_permission = Permission(admin_role)
 
 
 def create_app():

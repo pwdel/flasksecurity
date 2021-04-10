@@ -6,7 +6,7 @@ from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
-from . import sponsor_permission, editor_permission
+from . import sponsor_permission, editor_permission, admin_permission
 # for identifitaction and permission management
 from flask_principal import Identity, identity_changed, AnonymousIdentity
 # for printing system messages
@@ -351,7 +351,7 @@ def documentedit_editor(document_id):
 
 @admin_bp.route("/admin/logout")
 @login_required
-# @admin_permission.require(http_exception=403)
+@admin_permission.require(http_exception=403)
 def logoutadmin():
     """User log-out logic."""
     logout_user()
@@ -366,8 +366,9 @@ def logoutadmin():
 
 @admin_bp.route('/admin/dashboard', methods=['GET','POST'])
 @login_required
-# @admin_permission.require(http_exception=403)
+@admin_permission.require(http_exception=403)
 def dashboard_admin():
+
     """Logged-in User Dashboard."""
     return render_template(
         'dashboard_admin.jinja2',
@@ -389,5 +390,10 @@ def sponsor_page_not_found(e):
 
 @editor_bp.errorhandler(403)
 def sponsor_page_not_found(e):
+    # note that we set the 404 status explicitly
+    return redirect(url_for('auth_bp.login'))
+
+@admin_bp.errorhandler(403)
+def admin_page_not_found(e):
     # note that we set the 404 status explicitly
     return redirect(url_for('auth_bp.login'))
