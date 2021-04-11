@@ -377,6 +377,51 @@ def dashboard_admin():
         body="Welcome to the Admin Dashboard."
     )
 
+@admin_bp.route('/admin/signuprequests', methods=['GET','POST'])
+@login_required
+@admin_permission.require(http_exception=403)
+def signuprequests_admin():
+
+    """Logged-in User Dashboard."""
+    return render_template(
+        'signuprequests_admin.jinja2',
+        title='Signup Requests Dashboard',
+        template='layout',
+        body="Welcome to the Signup Requests Dashboard"
+    )
+
+@admin_bp.route('/admin/usersview', methods=['GET','POST'])
+@login_required
+@admin_permission.require(http_exception=403)
+def usersview_admin():
+
+    """Logged-in Admin List of Users."""
+    
+    # User objects list which includes list of all users which can be broken down into editors and sponsors
+    # get all users
+    user_objects=db.session.query(User.id,User.email,User.user_type,User.user_status,User.name,User.organization).\
+    order_by(User.id)
+
+    # get a count of the user objects
+    user_count = user_objects.count()
+    
+    # blank list to append to
+    user_list=[]
+
+    # loop through user objects
+    for counter in range(0,user_count):
+        user_list.append(user_objects[counter])
+
+    # show list of document names
+    users = user_list
+
+    """Logged-in User Dashboard."""
+    return render_template(
+        'usersview_admin.jinja2',
+        users=users
+    )
+
+
 # ---------- Page Access Restrictions ----------
 
 # ---------- Error Handling ----------

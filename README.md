@@ -1889,6 +1889,127 @@ def admin_page_not_found(e):
 
 ### Designing The Admin Dashboard
 
+#### Basic Description of Admin Capabilities
+
+What this codebase will cover:
+
+* Signup Requests: When a new editor or sponsor user type signs up, the admin will get a message on the, "Signup Requests" view showing them that a particular user wants to sign up, and asking to approve or reject this request.  Approval results in the user being granted access permissions to full app functionality.  Rejection results in the user being placed in, "limbo" where their dashboard is limited functionality, perhaps just a message showing that their status has been rejected, and instructing them to contact the site administrator for access.  "Pending" mode can just show that their request is pending.
+* User Status: Breakdown of all users on the site by type, and number of associated documents, perhaps even listing the documents out if not too long.
+* User Blocking - similar to rejection, give the administator the capability to block a user, turning them back into Rejected mode, even if they have underlying data that they have entered into the system. Taking into account user blocking, there should be a message that goes to the user expressing the either/or status of having either been Rejected upon signup, or having later been Rejected.
+
+What this codebase will not cover:
+
+* Grouping/teaming - this can be done in a future iteration.
+* Feature Access Levels - Freemium vs. Paid vs. Advanced version of software - this can be covered in a future iteration.
+* Export: The capability to export various data groups for backup purposes - this can be achieved by data dumps.
+
+#### Signup Request List of Tasks
+
+1. Admin Panel View and Route for Signup Request, e.g. "Filter by Pending Requests"
+2. New signup logic for initial signup requests - "Pending, Rejected, Activated."
+3. New sign-in logic for sign-in requests - is user, "Pending, Rejected or Activated" ?  Allow them to access based upon permissions.
+4. Class model for users - user_status - Pending, Rejected, Activated.
+5. Admin View breaking down all users by status, number of documents and other meta information.
+5. Admin Main Dashboard with Links to above tools.
+
+#### Modifying User Model to Include user_status
+
+To achieve this, the following can simply be added under the User model class:
+
+```
+    user_status = db.Column(
+        db.String(40),
+        unique=False,
+        nullable=True
+    ) 
+```
+This way, there is no additional table that needs to be created, no additional join logic, just an additional column within one table. user_status is something that is assigned to a user, that a user carries around with them, so it makes conceptual sense.
+
+We keep this column, "nullable" for now - and perhaps permanently, as the Admin may not have an activation request status.  That being said, we have to keep in mind that since nullable users are allowed, we should pull them up in our views for completeness sake.
+
+#### Users Admin View Draft
+
+With these steps the Users Admin View can be created:
+
+1. Setup "usersview_admin.jinja2" in admin template folder.
+2. Create /admin/usersview route in routes.py
+3. Link from admin dashboard and vice-versa with url_for
+
+Since the users's view is a bit easier, we can start off with this view.  The steps to create this view are as follows:
+
+1. Decide upon the columns needed for each section
+2. Within the specified route, create an object from a database /join query which joins all of the relevant elements needed to show each desired view to the admin using SQLAlchemy.
+3. Extract the database object into a list of objects with a for loop and pass that list into the view within the route.
+4. Using a for loop on the list of objects within the route, extract and display each relevant datapoint in a table.
+
+Here's what the user view table could look like:
+
+UserId | Email | User Type | User Status |Name | Organization
+
+
+```
+    """Logged-in Admin List of Users."""
+    
+    # User objects list which includes list of all users which can be broken down into editors and sponsors
+    # get all users
+    user_objects=db.session.query(User.id,User.email,User.user_type,User.user_status,User.name,User.organization).\
+    order_by(User.id)
+
+    # get a count of the user objects
+    user_count = user_objects.count()
+    
+    # blank list to append to
+    user_list=[]
+
+    # loop through user objects
+    for counter in range(0,user_count):
+        user_list.append(user_objects[counter])
+
+    # show list of document names
+    users = user_list
+
+    return render_template(
+        'documentlist_sponsor.jinja2',
+        users=users,
+    )
+
+```
+
+Once that is in place, moving over to the view we can create a table which contains the elements are looking for:
+
+```
+
+```
+
+
+#### Signup Request Admin View Draft
+
+With these steps the Admin View can be created:
+
+1. Setup "signuprequests_admin.jinja2" in admin template folder.
+2. Create /admin/signuprequests route in routes.py
+3. Link from admin dashboard and vice-versa with url_for
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

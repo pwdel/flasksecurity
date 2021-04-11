@@ -30,7 +30,12 @@ class User(db.Model):
         db.String(40),
         unique=False,
         nullable=False
-    )    
+    )
+    user_status = db.Column(
+        db.String(40),
+        unique=False,
+        nullable=True
+    ) 
     email = db.Column(
         db.String(40),
         unique=True,
