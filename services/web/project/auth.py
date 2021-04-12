@@ -116,7 +116,8 @@ def signupsponsor():
                 name=form.name.data,
                 email=form.email.data,
                 organization=form.organization.data,
-                user_type='sponsor'
+                user_type='sponsor',
+                user_status='pending'
             )
             # use our set_password method
             user.set_password(form.password.data)
@@ -167,7 +168,8 @@ def signupeditor():
                 name=form.name.data,
                 email=form.email.data,
                 organization=form.organization.data,
-                user_type='editor'
+                user_type='editor',
+                user_status='pending'
             )
             # use our set_password method
             user.set_password(form.password.data)
