@@ -382,12 +382,32 @@ def dashboard_admin():
 @admin_permission.require(http_exception=403)
 def signuprequests_admin():
 
+
+    """Logged-in Admin List of Users."""
+    
+    # User objects list which includes list of all users which can be broken down into editors and sponsors
+    # get all users
+    user_objects=db.session.query(User.id,User.email,User.user_type,User.user_status,User.name,User.organization).\
+    order_by(User.id)
+
+    # get a count of the user objects
+    user_count = user_objects.count()
+    
+    # blank list to append to
+    user_list=[]
+
+    # loop through user objects
+    for counter in range(0,user_count):
+        user_list.append(user_objects[counter])
+
+    # show list of document names
+    users = user_list
+
     """Logged-in User Dashboard."""
     return render_template(
         'signuprequests_admin.jinja2',
         title='Signup Requests Dashboard',
-        template='layout',
-        body="Welcome to the Signup Requests Dashboard"
+        users=users
     )
 
 @admin_bp.route('/admin/usersview', methods=['GET','POST'])
@@ -420,6 +440,22 @@ def usersview_admin():
         'usersview_admin.jinja2',
         users=users
     )
+
+
+@admin_bp.route('/admin/userapprove', methods=['GET','POST'])
+@login_required
+@admin_permission.require(http_exception=403)
+def userapprove_admin():
+    # do nothing for now
+    return redirect(url_for('admin_bp.usersview_admin'))    
+
+
+@admin_bp.route('/admin/userreject', methods=['GET','POST'])
+@login_required
+@admin_permission.require(http_exception=403)
+def userreject_admin():
+    # do nothing for now
+    return redirect(url_for('admin_bp.usersview_admin'))
 
 
 # ---------- Page Access Restrictions ----------
