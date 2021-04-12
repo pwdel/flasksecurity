@@ -1944,7 +1944,7 @@ Since the users's view is a bit easier, we can start off with this view.  The st
 
 Here's what the user view table could look like:
 
-UserId | Email | User Type | User Status |Name | Organization
+UserId | Name | Email | User Type | User Status | Organization
 
 
 ```
@@ -1978,8 +1978,102 @@ UserId | Email | User Type | User Status |Name | Organization
 Once that is in place, moving over to the view we can create a table which contains the elements are looking for:
 
 ```
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+  
+  ...
+
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+ ...
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+        <td class="tg-73oq">{{ user.id }}</td>
+...
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
 
 ```
+The above table is a list of all users and was created by passing an object which includes all users within it.  Additional objects could be created that splice the list into different sections, or using jinja2 we could use if statements to create the views within the views rather than within the route.
+
+Jinja2 has a [list of control structures](https://jinja.palletsprojects.com/en/2.11.x/templates/#list-of-control-structures) in their documentation.
+
+Our main conditions for user_status:
+
+* approved
+* pending
+* rejected
+* null
+
+If conditions can be cascaded within Jinja.  Therefore an example build showing a table of null status sponsors only would look like the following:
+
+```
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+        {% if user.user_status != 'approved' and user.user_status != 'rejected' and user.user_status != 'pending' %}
+            {% if user.user_type == 'sponsor' %}
+                <td class="tg-73oq">{{ user.id }}</td>
+                <td class="tg-73oq">{{ user.name }}</td>
+                <td class="tg-73oq">{{ user.email }}</td>
+                <td class="tg-73oq">{{ user.organization }}</td>
+                <td class="tg-73oq">{{ user.user_type }}</td>
+                <td class="tg-73oq">{{ user.user_status }}</td>
+            {% endif %}
+        {% endif %}         
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+
+{%- for item in sitemap recursive %}
+    <li><a href="{{ item.href|e }}">{{ item.title }}</a>
+    {%- if item.children -%}
+        <ul class="submenu">{{ loop(item.children) }}</ul>
+    {%- endif %}</li>
+{%- endfor %}
+
+```
+
+Other variations of the same operators should be able to re-create the appropriate view.
 
 
 #### Signup Request Admin View Draft

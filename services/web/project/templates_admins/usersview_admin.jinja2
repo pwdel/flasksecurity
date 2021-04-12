@@ -57,59 +57,390 @@ Admin Users View
     </tbody>
     </table>
 
+<p></p>
+---
+<p></p>
+
+<h3>Pending Users</h3>
+
+<p></p>
+
+<h4>Pending Sponsors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'pending' %}
+	      	{% if user.user_type == 'sponsor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+
+<p></p>
+
+<h4>Pending Editors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'pending' %}
+	      	{% if user.user_type == 'editor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+<p></p>
+---
+<p></p>
+
+<h3>Approved Users</h3>
+
+<p></p>
+
+<h4>Approved Sponsors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'approved' %}
+	      	{% if user.user_type == 'sponsor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+
+<p></p>
+
+<h4>Approved Editors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'approved' %}
+	      	{% if user.user_type == 'editor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
 
 
 <p></p>
 ---
 <p></p>
 
-Pending Users
+<h3>Rejected Users</h3>
 
 <p></p>
 
-Pending Sponsors
+<h4>Rejected Sponsors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'rejected' %}
+	      	{% if user.user_type == 'sponsor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
 
 <p></p>
 
-Pending Editors
+<h4>Rejected Editors</h4>
+
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
+
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status == 'rejected' %}
+	      	{% if user.user_type == 'editor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
 
 <p></p>
 ---
 <p></p>
 
-<h3>Active Sponsors</h3>
+<h3>Null Status</h3>
 
 <p></p>
 
-Active Sponsors
+<h4>Null Status Sponsors</h4>
 
-<p></p>
+    <style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg .tg-ea8y{background-color:#ffc5c5;border-color:#000000;font-weight:bold;text-align:left;vertical-align:top}
+    .tg .tg-73oq{border-color:#000000;text-align:left;vertical-align:top}
+    </style>
 
-Active Editors
-
-<p></p>
----
-<p></p>
-
-Rejected Users
-
-<p></p>
-
-Rejected Sponsors
-
-<p></p>
-
-Rejected Editors
-
-<p></p>
----
-<p></p>
-
-Null Status
-
-<p></p>
-
-Null Status Sponsors
+    <table class="tg" style="undefined;table-layout: fixed; width: 580px">
+    <colgroup>
+    <col style="width: 75px">
+    <col style="width: 200px">
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="tg-73oq">UserID</th>
+        <th class="tg-73oq">Name</th>
+        <th class="tg-73oq">Email</th>
+        <th class="tg-73oq">Organization</th>
+        <th class="tg-73oq">User Type</th>
+        <th class="tg-73oq">User Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+      	{% if user.user_status != 'approved' and user.user_status != 'rejected' and user.user_status != 'pending' %}
+	      	{% if user.user_type == 'sponsor' %}
+		        <td class="tg-73oq">{{ user.id }}</td>
+		        <td class="tg-73oq">{{ user.name }}</td>
+		        <td class="tg-73oq">{{ user.email }}</td>
+		        <td class="tg-73oq">{{ user.organization }}</td>
+		        <td class="tg-73oq">{{ user.user_type }}</td>
+		        <td class="tg-73oq">{{ user.user_status }}</td>
+	      	{% endif %}
+      	{% endif %}      	
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
 
 <p></p>
 
