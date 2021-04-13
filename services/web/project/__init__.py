@@ -34,10 +34,19 @@ sponsor_permission = Permission(sponsor_role)
 editor_role = RoleNeed('editor')
 # setting up an editor permission
 editor_permission = Permission(editor_role)
-# setting up admin permission
+# setting up admin roleneed
 admin_role = RoleNeed('admin')
 # setting up an admin permission
 admin_permission = Permission(admin_role)
+# setting up admin roleneed
+approved_role = RoleNeed('approved')
+# setting up an approved permission
+approved_permission = Permission(approved_role)
+# setting up admin roleneed
+notapproved_role = RoleNeed('notapproved')
+# setting up an approved permission
+notapproved_permission = Permission(notapproved_role)
+
 
 
 def create_app():
@@ -98,9 +107,11 @@ app = create_app()
 # @identity_loaded is a decorator, connect_via sender "app" with weak signals via blinker
 @identity_loaded.connect_via(app)
 def on_identity_loaded(sender, identity):
+
     # Set the identity user object
     # basically pass current_user object to identity.user
     identity.user = current_user
+
     # Add the UserNeed to the identity
     # ensure current_user has attribute identity "id"
     if hasattr(current_user, 'id'):
@@ -109,16 +120,37 @@ def on_identity_loaded(sender, identity):
         # printing the fact that we are querying db
         print('Querying Database for user_type!', file=sys.stderr)
         current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+        print('Querying Database for user_status!', file=sys.stderr)
+        current_user_status = User.query.filter(User.id==current_user.id)[0].user_status
+
         # print userid to console
         print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
         # provide userid to identity
         identity.provides.add(UserNeed(current_user.id))
+
         # print user_type to console
         print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
         # provide user_type to identity
         identity.provides.add(RoleNeed(current_user_type))
+
+        # print user_status to console
+        print('Providing Role: ',current_user_status,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_status))
+
         # this is set up in such a way that multiple needs can be added to the same user
         needs = []
+        
+        # append approved or notapproved roles depending upon status
+        # approved status role - pending and rejected goes to notapproved
+        if current_user_status == 'approved':
+            # append approved role to needs
+            needs.append(approved_role)
+        elif current_user_status == 'pending' or current_user_status == 'rejected':
+            # append approved role to needs
+            needs.append(notapproved_role)
+
         # append sponsor and editor roles depending upon user
         # if current_user_type is sponsor
         if current_user_type == 'sponsor':
@@ -167,8 +199,6 @@ def on_identity_loaded(sender, identity):
 
         for n in needs:
             identity.provides.add(n)
-
-
 
 
 # create shell context processor
