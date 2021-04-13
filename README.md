@@ -2141,14 +2141,53 @@ def userreject_admin():
 
 ```
 
-From the 
+We have to be able to pass the precise user from HTML into the function.  Therefore we need as input variable(s):
+
+* user_id
+
+We access a function on this user_id by calling it within the Jinja interface, and attaching it to the route on url_for:
+
+```
+    {% for user in users %}
+      <tr>
+
+        ...
+        <td>
+          <a href="{{ url_for('admin_bp.userapprove_admin', user_id=user.id) }}">✅</a>
+        </td>
+        ...
+
+      </tr>
+    {% endfor %}
+```
+
+The above link creates the following link for a user with id = 2:
+
+```
+http://localhost:5000/admin/userapprove?user_id=2
+```
+
+This link must be further appended to the end of the route with '/admin/userapprove/<user_id>', in order to properly pass the variable into the route.
+
+Then back in the route, we can have (using either approved or rejected)
+
+```
+user.user_status = 'approved'
+db.session.commit()
+```
+Once all of the above is in place, user approval and rejection will work.
+
+The above methodology could be used to create a, "re-approve" page as well, wherein users may be put into approved status after being rejected, and a, "post-reject" page wherein users may be rejected after they have been approved.
 
 
 #### Create Permission Based Upon user_status
 
 
+
+
 #### Decorate Certain Routes with user_status Permissions
 
+In order to let users understand that they are in either pending mode or rejected mode, they still must be allowed to log in to a dhasboard so they can at least get the message that they are not allowed into certain portions of the website.
 
 
 #### Include Feedback on Editor and Sponsor Dashboard
