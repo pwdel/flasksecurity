@@ -442,19 +442,39 @@ def usersview_admin():
     )
 
 
-@admin_bp.route('/admin/userapprove', methods=['GET','POST'])
+@admin_bp.route('/admin/userapprove/<user_id>', methods=['GET','POST'])
 @login_required
 @admin_permission.require(http_exception=403)
-def userapprove_admin():
-    # do nothing for now
+def userapprove_admin(user_id):
+
+    """Logged-in Admin List of Users."""
+    # take the supplied user_id and use that to access a given user.
+
+    # User objects list which includes list of all users which can be broken down into editors and sponsors
+    # get individual user
+    user = db.session.query(User).filter(User.id==user_id).first() 
+    # update status to approved
+    user.user_status = 'approved'
+    # commit to database
+    db.session.commit()
+
     return redirect(url_for('admin_bp.usersview_admin'))    
 
 
-@admin_bp.route('/admin/userreject', methods=['GET','POST'])
+@admin_bp.route('/admin/userreject/<user_id>', methods=['GET','POST'])
 @login_required
 @admin_permission.require(http_exception=403)
-def userreject_admin():
-    # do nothing for now
+def userreject_admin(user_id):
+    """Logged-in Admin List of Users."""
+
+    # User objects list which includes list of all users which can be broken down into editors and sponsors
+    # get individual user
+    user = db.session.query(User).filter(User.id==user_id).first() 
+    # update status to approved
+    user.user_status = 'rejected'
+    # commit to database
+    db.session.commit()
+
     return redirect(url_for('admin_bp.usersview_admin'))
 
 

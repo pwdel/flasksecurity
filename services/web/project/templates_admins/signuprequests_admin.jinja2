@@ -57,8 +57,12 @@ Signup Requests Dashboard
 		        <td class="tg-73oq">{{ user.organization }}</td>
 		        <td class="tg-73oq">{{ user.user_type }}</td>
 		        <td class="tg-73oq">{{ user.user_status }}</td>
-		        <td class="tg-73oq">✅</td>
-		        <td class="tg-73oq">❌</td>
+		        <td>
+          			<a href="{{ url_for('admin_bp.userapprove_admin', user_id=user.id) }}">✅</a>
+        		</td>
+		        <td>
+          			<a href="{{ url_for('admin_bp.userreject_admin', user_id=user.id) }}">❌</a>
+        		</td>
 	      	{% endif %}
       	{% endif %}      	
       </tr>
@@ -115,8 +119,12 @@ Signup Requests Dashboard
 		        <td class="tg-73oq">{{ user.organization }}</td>
 		        <td class="tg-73oq">{{ user.user_type }}</td>
 		        <td class="tg-73oq">{{ user.user_status }}</td>
-		        <td class="tg-73oq">✅</td>
-		        <td class="tg-73oq">❌</td>       
+		        <td>
+          			<a href="{{ url_for('admin_bp.userapprove_admin', user_id=user.id) }}">✅</a>
+        		</td>
+		        <td>
+          			<a href="{{ url_for('admin_bp.userreject_admin', user_id=user.id) }}">❌</a>
+        		</td>    
 	      	{% endif %}
       	{% endif %}      	
       </tr>
