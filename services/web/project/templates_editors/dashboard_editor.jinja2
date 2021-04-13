@@ -10,6 +10,21 @@
       />
     </div>
 
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <div class="alert alert-warning">
+        <button type="button" class="close" data-dismiss="alert">
+        </button>
+        <li>{{ message }}</li>
+      </div>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+
     <h1>Editor Dashboard</h1>
 
     <p>This is the editor dashboard.</p>
@@ -23,7 +38,7 @@
   <p></p>
 
   <div>
-  <a href="{{ url_for('editor_bp.logouteditor') }}">Log Out.</a>
+  <a href="{{ url_for('editor_bp.logouteditor') }}">Log Out</a>
   </div>
 
   </div>

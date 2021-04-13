@@ -2182,26 +2182,228 @@ The above methodology could be used to create a, "re-approve" page as well, wher
 
 #### Create Permission Based Upon user_status
 
+Basically we use the same methodology here that we had used in implementing flask_principal previously within this codebase.
 
+1. Setup a role in __init__.py.
+2. Setup a permission in __init__.py.
+3. Add identity and needs to user on app load.
+4. Decorate the needed routes with permissions allowing approved users to view said routes.
+
+First the roles and permissions within __init__.py:
+
+```
+# setting up admin roleneed
+approved_role = RoleNeed('approved')
+# setting up an approved permission
+approved_permission = Permission(approved_role)
+```
+Importing the approved_permission into the routes.py:
+
+```
+from . import sponsor_permission, editor_permission, admin_permission, approved_permission
+```
+Whereas with admin the proper permissions could be assigned and route decorated immediately after creating the RoleNeed and Permission because the permission was based upon a column query in the database that already existed, now a whole new query into the database must be created focused on user_status rather than user_type.
+
+Essentially there are multiple identities and needs that are now created.  Previously, our database query for user_type prior to the if statements for sponsor/editor looked like the following:
+
+```
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+        # Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database for user_type!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+
+```
+We modify this to include, "approved" identity and needs assignments:
+
+```
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+
+    # Set the identity user object
+    # basically pass current_user object to identity.user
+    identity.user = current_user
+
+    # Add the UserNeed to the identity
+    # ensure current_user has attribute identity "id"
+    if hasattr(current_user, 'id'):
+        # specifically, need to have current_user.id
+        # Query user type given user.id
+        # printing the fact that we are querying db
+        print('Querying Database for user_type!', file=sys.stderr)
+        current_user_type = User.query.filter(User.id==current_user.id)[0].user_type
+
+        print('Querying Database for user_status!', file=sys.stderr)
+        current_user_status = User.query.filter(User.id==current_user.id)[0].user_status
+
+        # print userid to console
+        print('Providing ID: ',current_user.id,' ...to Identity', file=sys.stderr)
+        # provide userid to identity
+        identity.provides.add(UserNeed(current_user.id))
+
+        # print user_type to console
+        print('Providing Role: ',current_user_type,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_type))
+
+        # print user_status to console
+        print('Providing Role: ',current_user_status,' ...to Identity', file=sys.stderr)
+        # provide user_type to identity
+        identity.provides.add(RoleNeed(current_user_status))
+
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+```
+
+For every action in the system, we now get the following output for a user (example shown for sponsor user):
+
+```
+flask  | Querying Database for user_type!
+flask  | Querying Database for user_status!
+flask  | Providing ID:  2  ...to Identity
+flask  | Providing Role:  sponsor  ...to Identity
+flask  | Providing Role:  approved  ...to Identity
+flask  | Querying Database for document_ids!
+flask  | appended document_ids to needs :  [1]
+flask  | appended to needs :  [Need(method='role', value='sponsor')]
+
+```
+Other than the 'role' method being appended to needs, the, 'status' method must also be appended with values, "approved, pending, rejected" as options. This can of course be attached 
+
+```
+        # this is set up in such a way that multiple needs can be added to the same user
+        needs = []
+        # print the fact that we are appending to needs
+        print('appended to needs : ',needs, file=sys.stderr)
+        # actual appending of role
+        needs.append(approved_role)
+
+```
+Once this has been done, the needs are being appended, so the route dec
 
 
 #### Decorate Certain Routes with user_status Permissions
 
-In order to let users understand that they are in either pending mode or rejected mode, they still must be allowed to log in to a dhasboard so they can at least get the message that they are not allowed into certain portions of the website.
+In order to let users understand that they are in either pending mode or rejected mode, they still must be allowed to log in to a dashboard so they can at least get the message that they are not allowed into certain portions of the website.
 
+Designing our permissions gating:
+
+1. Dashboards and logouts should be admissable by everyone.
+2. Document lists should only be admissible by approved users.
+3. Document editing routes should only be admissible by approved users.
+
+Add the following decorator to each relevant route:
+
+```
+@approved_permission.require(http_exception=403)
+```
+Upon attempting to activate this decorator, it becomes apparent that we actually only have one static permission added, that of, 'approved' when we really need two types of permissions, approved and notapproved:
+
+```
+# setting up admin roleneed
+approved_role = RoleNeed('approved')
+# setting up an approved permission
+approved_permission = Permission(approved_role)
+```
+Just as with the editor/sponsor role duoality, if statements must be used to determine which role and permission features get added to the needs list.
 
 #### Include Feedback on Editor and Sponsor Dashboard
 
+To include messages we can use [Flask's built-in flashing functionality](https://flask.palletsprojects.com/en/1.1.x/patterns/flashing/).  Within the route we can include an if statment:
 
+```
+        if request.form['username'] != 'admin' or \
+                request.form['password'] != 'secret':
+            error = 'Invalid credentials'
+        else:
+            flash('You were successfully logged in')
+            return redirect(url_for('index'))
+```
+Within our sponsor dashboard route, that might look like the following:
 
+```
+@sponsor_bp.route('/sponsor/dashboard', methods=['GET','POST'])
+@login_required
+@sponsor_permission.require(http_exception=403)
+def dashboard_sponsor():
+    """Logged-in User Dashboard."""
 
-#### Signup Request Admin View Draft
+    if 1==1:
+        flash('hello world')
 
-With these steps the Admin View can be created:
+    return render_template(
+        'dashboard_sponsor.jinja2',
+        title='Sponsor Dashboard',
+        template='layout',
+        body="Welcome to the Sponsor Dashboard."
+    )
 
-1. Setup "signuprequests_admin.jinja2" in admin template folder.
-2. Create /admin/signuprequests route in routes.py
-3. Link from admin dashboard and vice-versa with url_for
+```
+And within the dashboard view itself:
+
+```
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <div class="alert alert-warning">
+        <button type="button" class="close" data-dismiss="alert">
+        </button>
+        <li>{{ message }}</li>
+      </div>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+```
+...which flashes a yellow alert at the top of the page.
+
+The trick is now to flash the above message on the condition that a sponsor does not have the necessary permissions. The faster way to code this would be another database query, however that is not as efficient as simply passing the permission from the session and flashing a message based upon 'approved' or 'notapproved'.
+
+The current user can hypothetically be queried as follows, just as is being done in the __init__.py file:
+
+```
+identity.user = current_user
+
+# check identity for identity.permission
+print('Identity Permissions include: ',identity.permission, file=sys.stderr)
+
+```
+
+The above didn't really work, and since this is tricky, I just decided to go back to the database query method:
+
+```
+    # Query user status
+    print('Querying Database for user_status!', file=sys.stderr)
+    current_user_status = User.query.filter(User.id==current_user.id)[0].user_status
+
+    if current_user_status=='notapproved':
+        flash('Your User Approval Status is either Pending or Rejected. Please contact the site administrator to gain Approved status.')
+
+```
+
+The same function may be added to the editor dashboard route and view.
+
+#### Approving Rejected Users and Rejecting Approved Users
+
 
 
 

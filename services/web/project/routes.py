@@ -6,9 +6,9 @@ from flask_login import logout_user
 from .forms import DocumentForm
 from .models import db, Document, User, Retention
 from wtforms_sqlalchemy.orm import QuerySelectField
-from . import sponsor_permission, editor_permission, admin_permission
+from . import sponsor_permission, editor_permission, admin_permission, approved_permission, notapproved_permission
 # for identifitaction and permission management
-from flask_principal import Identity, identity_changed, AnonymousIdentity
+from flask_principal import Identity, identity_changed, identity_loaded, AnonymousIdentity
 # for printing system messages
 import sys
 # individual document access permission
@@ -73,6 +73,14 @@ def logoutsponsor():
 @sponsor_permission.require(http_exception=403)
 def dashboard_sponsor():
     """Logged-in User Dashboard."""
+
+    # Query user status
+    print('Querying Database for user_status!', file=sys.stderr)
+    current_user_status = User.query.filter(User.id==current_user.id)[0].user_status
+
+    if current_user_status=='pending' or current_user_status=='rejected':
+        flash('Your User Approval Status is either Pending or Rejected. Please contact the site administrator to gain Approved status.')
+
     return render_template(
         'dashboard_sponsor.jinja2',
         title='Sponsor Dashboard',
@@ -80,9 +88,11 @@ def dashboard_sponsor():
         body="Welcome to the Sponsor Dashboard."
     )
 
+
 @sponsor_bp.route('/sponsor/newdocument', methods=['GET','POST'])
 @login_required
 @sponsor_permission.require(http_exception=403)
+@approved_permission.require(http_exception=403)
 def newdocument_sponsor():
     
     # new document form
@@ -145,6 +155,7 @@ def newdocument_sponsor():
 @sponsor_bp.route('/sponsor/documents', methods=['GET','POST'])
 @login_required
 @sponsor_permission.require(http_exception=403)
+@approved_permission.require(http_exception=403)
 def documentlist_sponsor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -181,6 +192,7 @@ def documentlist_sponsor():
 @sponsor_bp.route('/sponsor/documents/<document_id>', methods=['GET','POST'])
 @login_required
 @sponsor_permission.require(http_exception=403)
+@approved_permission.require(http_exception=403)
 def documentedit_sponsor(document_id):
 
     # setup permission for individual document_id
@@ -264,6 +276,14 @@ def logouteditor():
 @editor_permission.require(http_exception=403)
 def dashboard_editor():
     """Logged-in User Dashboard."""
+
+    # Query user status
+    print('Querying Database for user_status!', file=sys.stderr)
+    current_user_status = User.query.filter(User.id==current_user.id)[0].user_status
+
+    if current_user_status=='pending' or current_user_status=='rejected':
+        flash('Your User Approval Status is either Pending or Rejected. Please contact the site administrator to gain Approved status.')
+
     return render_template(
         'dashboard_editor.jinja2',
         title='Editor Dashboard',
@@ -274,6 +294,7 @@ def dashboard_editor():
 @editor_bp.route('/editor/documents', methods=['GET','POST'])
 @login_required
 @editor_permission.require(http_exception=403)
+@approved_permission.require(http_exception=403)
 def documentlist_editor():
     """Logged-in Sponsor List of Documents."""
     # get the current user id
@@ -307,6 +328,7 @@ def documentlist_editor():
 @editor_bp.route('/editor/documents/<document_id>', methods=['GET','POST'])
 @login_required
 @editor_permission.require(http_exception=403)
+@approved_permission.require(http_exception=403)
 def documentedit_editor(document_id):
 
     # setup permission for individual document_id
