@@ -208,5 +208,12 @@ from .models import db, Document, User, Retention
 def make_shell_context():
     return {'db': db, 'User': User, 'Document': Document, 'Retention': Retention}
 
+# Apply Content Security Policy to All 
+@app.after_request
+def add_security_headers(resp):
+    resp.headers['Content-Security-Policy']='default-src \'self\''
+    return resp
+
+
 if __name__ == "__main__":
    app.run(host='0.0.0.0',port=port)
