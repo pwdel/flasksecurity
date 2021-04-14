@@ -2771,7 +2771,32 @@ Content-Security-Policy:
   default-src 'none';
 ```
 
+#### Re-Investigating Bootstrap
 
+When we visit:
+
+```
+view-source:http://localhost:5000/project/static/css/bootstrap.min.css
+```
+
+The following gets thrown:
+
+```
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+```
+
+So basically, we're getting a 404 error on the bootstrap source file.
+
+The real way to do it was to add the following:
+
+```
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.min.css') }}" />
+```
+
+After doing that, everything is back to normal more or less.
 
 ### Flask Talisman
 
@@ -2798,12 +2823,20 @@ This will instruct a browser to hide the cookie from javascript code.
 
 From [this article](https://smirnov-am.github.io/securing-flask-web-applications/).
 
+```
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True
+)
+```
+
 ### Cookie Protection - SameSite
 
 Similar to the CSRF attack, a user's cookie was sent from an attacking site, creates an open door. Setting SameSite=strict will mitigate this attack.  Another option is, "lax" which won't allow sending cookies from other sites at all when doing any type of request other than GET.
 
 From [this article](https://smirnov-am.github.io/securing-flask-web-applications/). Also covered [here](https://flask.palletsprojects.com/en/1.1.x/security/#set-cookie-options).
 
+I put the below within __init__.py:
 
 ```
 app.config.update(
@@ -2811,25 +2844,27 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
+```
 
-
+However, I was not sure what the below does, but it appears to be the same command written differently:
+```
 response.set_cookie('username', 'flask', secure=True, httponly=True, samesite='Lax')
 ```
 
-Can also set the cookie to expire in 10 mins.
+Can also set the cookie to expire in 10 mins.  This is a little bit overkill so I won't do it.
 
 ```
 # cookie expires after 10 minutes
 response.set_cookie('snakes', '3', max_age=600)
 ```
-
+Unfortunately since we don't have HTTPS in regular free heroku, we have to comment out SESSION_COOKIE_SECURE, which forces HTTPS only.
 
 
 ## Pushing to Production
 
 Pushing to production on heroku.
 
-Cleaning up code.
+
 
 ## Future Work - Possible To Do List
 

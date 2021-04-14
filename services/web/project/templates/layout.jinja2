@@ -3,6 +3,8 @@
 
 <head>
 
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.min.css') }}" />
+
   <title>{% block title %}Linguo{% endblock %}</title>
   <meta charset="utf-8"/>
   <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
@@ -28,7 +30,6 @@
   <meta property="og:image:width" content="1000"/>
   <meta property="og:image:height" content="523"/>
   {% block pagestyles %}
-    <link rel="stylesheet" href="/project/static/css/bootstrap.min.css"/>
   {% endblock %}
 </head>
 

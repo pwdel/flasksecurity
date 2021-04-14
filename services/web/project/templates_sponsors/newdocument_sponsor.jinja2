@@ -20,7 +20,7 @@
 
     <hr>
 
-    <div class="form-wrapper">
+    <div class="form-wrapper mb-3">
 
       <form method="POST" action="">
         {{ form.csrf_token }}
@@ -36,20 +36,24 @@
           {% endif %}
         </fieldset>
 
+    </div>
+
       <p></p>
 
+    <div class="form-wrapper mb-3">
 
       <fieldset class="document_body">
-        {{ form.document_body.label }}
-        {{ form.document_body(placeholder='Document Body Content', size=100) }}
-        {% if form.document_body.errors %}
-          <ul class="errors">
-            {% for error in form.document_body.errors %}
-              <li>{{ error }}</li>{% endfor %}
-          </ul>
-        {% endif %}
+          {{ form.document_body.label }}
+          {{ form.document_body(placeholder='Document Body Content', size=100) }}
+          {% if form.document_body.errors %}
+            <ul class="errors">
+              {% for error in form.document_body.errors %}
+                <li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
       </fieldset>
 
+      </div>
 
       <p></p>
 

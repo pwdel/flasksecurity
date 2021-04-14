@@ -214,6 +214,15 @@ def add_security_headers(resp):
     resp.headers['Content-Security-Policy']='default-src \'self\''
     return resp
 
+#  Cookie Protection - SameSite
+app.config.update(
+    # Forces cookie on HTTPS only
+    # SESSION_COOKIE_SECURE=True,
+    # Prevents cookie from being read via javascript code.
+    SESSION_COOKIE_HTTPONLY=True,
+    # won’t allow sending cookies from another sites when doing requests other than GET
+    SESSION_COOKIE_SAMESITE='Lax',
+)
 
 if __name__ == "__main__":
    app.run(host='0.0.0.0',port=port)

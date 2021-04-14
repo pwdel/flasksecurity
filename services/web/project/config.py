@@ -10,7 +10,6 @@ ASSETS_DEBUG = False
 # tell Flask to build our bundles of assets when Flask starts up
 ASSETS_AUTO_BUILD = True
 
-
 # environment specific configuration variables
 class Config(object):
 
@@ -29,4 +28,4 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
-    
+
