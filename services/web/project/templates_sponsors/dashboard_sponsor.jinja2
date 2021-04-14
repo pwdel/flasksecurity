@@ -2,7 +2,6 @@
 
 {% block content %}
   <div class="form-wrapper">
-
     <div class="logo">
       <img
         src="{{ url_for('static', filename='img/linguo.jpg') }}"
@@ -15,8 +14,6 @@
     <ul class=flashes>
     {% for message in messages %}
       <div class="alert alert-warning">
-        <button type="button" class="close" data-dismiss="alert">
-        </button>
         <li>{{ message }}</li>
       </div>
     {% endfor %}

@@ -2404,30 +2404,7 @@ The same function may be added to the editor dashboard route and view.
 
 #### Approving Rejected Users and Rejecting Approved Users
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Since the main purpose of this app branch was to provide an extremely basic layer of added security, this functionality can be added in at a different time - it basically represents expansion of the admin dashboard.
 
 ## Reviewing Flask Security Considerations
 
@@ -2645,6 +2622,248 @@ Other than standard security loopholes, there is also inner-app security loophol
 * Add [Flask Talisman](https://github.com/GoogleCloudPlatform/flask-talisman)
 * Cookie Protection - HTTP Only, From [this article](https://smirnov-am.github.io/securing-flask-web-applications/).
 * Cookie Protection - SameSite From [this article](https://smirnov-am.github.io/securing-flask-web-applications/).
+
+### Content-Security-Policy
+
+Create a Content-Security-Policy header and add it to the routes.  Also covered in [Flask Content Security Policy](https://flask.palletsprojects.com/en/1.1.x/security/#content-security-policy-csp).
+
+Need to create something like the following and perhaps import it for every route.
+
+```
+@app.route('/', methods=['GET', 'POST'])
+def tweet_feed():
+if request.method == 'POST':
+    tweet = request.form['tweet']
+    tweets.append(tweet)
+response = make_response(render_template('tweet_feed.html', tweets=tweets))
+response.headers['Content-Security-Policy'] = "default-src 'self'"
+return response
+```
+
+There is no one-size fits all content security policy (or CSP).  The content security policy that we use depends upon our site and what we are trying to protect from.  Basically what the CSP does is:
+
+> Tell the browser where it can load various types of resource from. This header should be used whenever possible, but requires some work to define the correct policy for your site. A very strict policy would be:
+
+```
+response.headers['Content-Security-Policy'] = "default-src 'self'"
+```
+
+[This Stackoverlow disucssion](https://stackoverflow.com/questions/63290047/flask-csp-content-security-policy-best-practice-against-attack-such-as-cross) talks about using a decorator function within the routes to add the content security policy to all routes at one time.  That would be:
+
+```
+@app.after_request
+def add_security_headers(resp):
+    resp.headers['Content-Security-Policy']='default-src \'self\''
+    return resp
+```
+
+#### Designing a CSP
+
+* [This website goes through an introduction to CSP design considerations](https://csp.withgoogle.com/docs/index.html)
+* [In this article](https://csp.withgoogle.com/docs/strict-csp.html) they go through a strict CSP Policy example.
+* [There also exists a CSP Evaluator](https://csp-evaluator.withgoogle.com/) online.
+
+This security policy:
+
+```
+Content-Security-Policy:
+  object-src 'none';
+  script-src 'nonce-{random}' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' https: http:;
+  base-uri 'none';
+  report-uri https://your-report-collector.example.com/
+```
+
+Returns green checkmarks next to object-src, base-uri, report-uri and a yellow flag for script-src.
+
+The reasoning for this is:
+
+>     'unsafe-eval' allows the execution of code injected into DOM APIs such as eval().
+
+```
+Content-Security-Policy:
+  object-src 'none';
+  script-src 'nonce-{random}' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' https: http:;
+  base-uri 'none';
+  report-uri 'none';
+  default-src 'none';
+```
+
+Looking more closely at what this all means:
+
+```
+    object-src 'none' Prevents fetching and executing plugin resources embedded using <object>, <embed> or <applet> tags. The most common example is Flash.
+
+    script-src nonce-{random} 'unsafe-inline' The nonce directive means that <script> elements will be allowed to execute only if they contain a nonce attribute matching the randomly-generated value which appears in the policy.
+
+    Note: In the presence of a CSP nonce the unsafe-inline directive will be ignored by modern browsers. Older browsers, which don't support nonces, will see unsafe-inline and allow inline scripts to execute.
+
+    script-src 'strict-dynamic' https: http: 'strict-dynamic' allows the execution of scripts dynamically added to the page, as long as they were loaded by a safe, already-trusted script (see the specification).
+
+    Note: In the presence of 'strict-dynamic' the https: and http: whitelist entries will be ignored by modern browsers. Older browsers will allow the loading of scripts from any URL.
+
+    'unsafe-eval' allows the application to use the eval() JavaScript function. This reduces the protection against certain types of DOM-based XSS bugs, but makes it easier to adopt CSP. If your application doesn't use eval(), you can remove this keyword and have a safer policy.
+
+    base-uri 'none' Disables <base> URIs, preventing attackers from changing the locations of scripts loaded from relative URLs. If your application uses <base> tags, base-uri 'self' is usually also safe.
+
+    report-uri https://your-report-collector.example.com/ causes all violations to the policy to be reported to the supplied URL so you can debug them.
+
+```
+So the above:
+
+```
+@app.after_request
+def add_security_headers(resp):
+    resp.headers['Content-Security-Policy']='default-src \'self\''
+    return resp
+```
+Can be inserted in __init__.py.  Interestingly after we do this, all of the javascript basically gets killed, meaning the bootstrap theme no longer works, so everything becomes dull and a lot of the design is destroyed. Why is this?
+
+The reason is because our stylesheet pulls bootstrap from an outside CDN, rather than from our own, "server."
+
+```
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+```
+
+To run bootstrap locally, we can simply download it [here](https://getbootstrap.com/).  The current version as of the authoring of this repo is 5.0.  Download the minified css and javascript files and then put them into the project files, replacing our other existing project files (which basically contain nothing at this point).
+
+For our purposes, we put the source files under, "/project/static/css" and "/project/static/js"
+
+Then, on the layout, we can change our link to:
+
+```
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+```
+Looking further within the layout.jinja2 file, there are evidently more links to outside sources included:
+
+```
+  <link href="https://fonts.googleapis.com/css?family=Poppins:200,300,400,500" rel="stylesheet">
+  <link rel="stylesheet" href="https://use.typekit.net/sus7rlu.css">
+  <link href="{{ url_for('static', filename='dist/css/style.css') }}" rel="stylesheet" type="text/css">
+
+```
+* "fonts.googleapis" is evidently just standard google fonts, which we may not be using at the moment.
+* "use.typekit.net" appears to be an Adobe font family CDN, which we are also not using.
+* Finally, the url_for appears to be leftover from a previous tutorial which attempted to implement a compiled distribution file for CSS, rather than root CSS as we are attempting to now.
+
+I can of course remove these to see what that does - and it basically takes out some additional styling, including the yellow alert boxes and possibly some other.
+
+The finalized way we implement our bootstrap to work with local source across the site, as long as layout is extended, is:
+
+```
+  {% block pagestyles %}
+    <link rel="stylesheet" href="/project/static/css/bootstrap.min.css"/>
+  {% endblock %}
+```
+Part of what I learned through implementing this is that each blueprint gives the capability for each area of the site to contain its own static code. The, "static" that we are calling out within each blueprint actually refers to the individual static folder within the blueprint's corresponding folder, not the overall static folder.
+
+The way this is being left leaves something to be desired in terms of user interface, but we can come back to fix the look and feel in a future iteration - security was the most important element for this go-around.
+
+#### Attempting to Author and Even Better CSP
+
+To translate this into something usable in the __init__.py file:
+
+```
+Content-Security-Policy:
+  object-src 'none';
+  script-src 'nonce-{random}' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' https: http:;
+  base-uri 'none';
+  report-uri 'none';
+  default-src 'none';
+```
+
+#### Re-Investigating Bootstrap
+
+When we visit:
+
+```
+view-source:http://localhost:5000/project/static/css/bootstrap.min.css
+```
+
+The following gets thrown:
+
+```
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+```
+
+So basically, we're getting a 404 error on the bootstrap source file.
+
+The real way to do it was to add the following:
+
+```
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.min.css') }}" />
+```
+
+After doing that, everything is back to normal more or less.
+
+### Flask Talisman
+
+[Flask Talisman](https://github.com/GoogleCloudPlatform/flask-talisman) which is covered in the linked Github, is an extension that handles setting HTTP headers that can help with security issues.
+
+For the stage of the app we are at now, without an official deployment, this will prevent production from working.  For example, setting HTTPS to strict will not work for deployment on Heroku free tier.
+
+However there are some very important configuration options:
+
+>   Forces all connects to https, unless running with debug enabled.
+>   Enables HTTP Strict Transport Security.
+>   Sets Flask's session cookie to secure, so it will never be set if your application is somehow accessed via a non-secure connection.
+>    Sets Flask's session cookie to httponly, preventing JavaScript from being able to access its content. CSRF via Ajax uses a separate cookie and should be unaffected.
+>    Sets X-Frame-Options to SAMEORIGIN to avoid clickjacking.
+>    Sets X-XSS-Protection to enable a cross site scripting filter for IE and Safari (note Chrome has removed this and Firefox never supported it).
+>    Sets X-Content-Type-Options to prevent content type sniffing.
+>    Sets a strict Content Security Policy of default-src: 'self'. This is intended to almost completely prevent Cross Site Scripting (XSS) attacks. This is probably the only setting that you should reasonably change. See the Content Security Policy section.
+>    Sets a strict Referrer-Policy of strict-origin-when-cross-origin that governs which referrer information should be included with requests made.
+
+
+### Cookie Protection - HTTP Only
+
+This will instruct a browser to hide the cookie from javascript code.
+
+From [this article](https://smirnov-am.github.io/securing-flask-web-applications/).
+
+```
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True
+)
+```
+
+### Cookie Protection - SameSite
+
+Similar to the CSRF attack, a user's cookie was sent from an attacking site, creates an open door. Setting SameSite=strict will mitigate this attack.  Another option is, "lax" which won't allow sending cookies from other sites at all when doing any type of request other than GET.
+
+From [this article](https://smirnov-am.github.io/securing-flask-web-applications/). Also covered [here](https://flask.palletsprojects.com/en/1.1.x/security/#set-cookie-options).
+
+I put the below within __init__.py:
+
+```
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
+```
+
+However, I was not sure what the below does, but it appears to be the same command written differently:
+```
+response.set_cookie('username', 'flask', secure=True, httponly=True, samesite='Lax')
+```
+
+Can also set the cookie to expire in 10 mins.  This is a little bit overkill so I won't do it.
+
+```
+# cookie expires after 10 minutes
+response.set_cookie('snakes', '3', max_age=600)
+```
+Unfortunately since we don't have HTTPS in regular free heroku, we have to comment out SESSION_COOKIE_SECURE, which forces HTTPS only.
+
+
+## Pushing to Production
+
+Pushing to production on heroku.
+
 
 
 ## Future Work - Possible To Do List
