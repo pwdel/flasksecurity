@@ -2926,14 +2926,34 @@ Python 3.9.1 (default, Jan 12 2021, 16:56:42)
 [GCC 8.3.0] on linux
 App: project [production]
 Instance: /home/app/web/instance
-verCo', user_type='admin')on Admin', email='admin@test.com', organization='Whatev
+>>> user = User(name='Person Admin', email='admin@test.com', organization='WhateverCo', user_type='admin')
 >>> # use our set_password method
 >>> user.set_password('password')
 >>> # commit our new user record and log the user in
 >>> db.session.add(user)
 >>> db.session.commit() 
 ```
-Checking the database...
+The above set of commands does indeed create a username and password for the admin user.  However, we obviously don't want the password to be, 'password' so that could be changed.
+
+So to change the password for a particular user within flask shell, we should first know the userid of that particular user. This can actually be found within the Heroku "Dataclips" section of the Heroku Postgres addon interface.  Within Flask shell:
+
+```
+>>> user_id = 1
+user = db.session.query(User).filter(User.id==user_id).first()
+# update status to approved
+user.set_password('whatever new password that is more complex')
+# commit rather than adding user, since this is an update
+db.session.commit()
+```
+
+### Verifying the Database Works as Expected
+
+It's entirely possible that, "Heroku Postgres" displays some kind of different behavior than our locally-built postgres, so it's a good idea to test in production.
+
+After playing around for a bit, everything seems to work fine. However one complicating factor, for myself the software designer but perhaps not for other users, is that now that I have multiple Heroku servers running, all with similar memetic names which include, a, "state type" and a "place name" such as, "magical-woods" or "sublime-desert" - they all sort of mix together in terms of what app is equivalent to what version now, which starts to make database administration and server administration a bit confusing.
+
+So a good possible practice would be to use Heroku's "star" feature and put a star next to each app, and to star the most recent app being worked on in order to not get confused when running flash shell commands, heroku postgres dataclips, etc..
+
 
 ## Future Work - Possible To Do List
 
