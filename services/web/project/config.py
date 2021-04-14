@@ -25,7 +25,7 @@ class Config(object):
     # COMPRESSOR_DEBUG = environ.get('COMPRESSOR_DEBUG')
 
     # Flask-SQLAlchemy
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL_PROD", "postgresql://")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
 

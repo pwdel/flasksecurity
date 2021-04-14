@@ -2862,9 +2862,78 @@ Unfortunately since we don't have HTTPS in regular free heroku, we have to comme
 
 ## Pushing to Production
 
-Pushing to production on heroku.
+The best thing to do prior to pushing to production on Heroku, is to start a new, production-specific branch and save the previous work as its own branch.
 
+There is at least one code modification that needs to be done prior to pushing things into production, and I might find more.
 
+For the previous iteration of this project, [we documented putting everything into production here](https://github.com/pwdel/userlevelmodelsflask#putting-everything-into-production).
+
+So here are the steps, in order:
+
+1. Change the environmental variable for the database so that it's not DATABASE_URL
+
+```
+SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL_PROD", "postgresql://")
+```
+
+2. Build for production - should have a blank port variable.
+
+```
+sudo docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+3. Log into Heroku docker registry: 
+
+```
+sudo docker login --username=_ --password=$(heroku auth:token) registry.heroku.com
+```
+
+4. Create a new app.
+
+```
+heroku create
+```
+The app in this case is "https://limitless-savannah-22460.herokuapp.com/"
+
+5. Provision Postgres within Heroku console.
+
+5. Replace environmental variables, to the best of our ability, with the variables used in the previous iteration.
+
+6. Tag with app name.  Utilize the provisioned Heroku app name as the tag with /web afterward.
+
+```
+sudo docker tag userlevels_flask registry.heroku.com/limitless-savannah-22460/web
+```
+
+7. Push to container registry.
+
+```
+sudo docker push registry.heroku.com/limitless-savannah-22460/web
+```
+
+8. Release to web.
+
+```
+heroku container:release web
+```
+
+9. Create admin user with flask shell
+
+Basically, just went to the Heroku console and typed in, "flask shell" and it logged in.  then:
+
+```
+Python 3.9.1 (default, Jan 12 2021, 16:56:42) 
+[GCC 8.3.0] on linux
+App: project [production]
+Instance: /home/app/web/instance
+verCo', user_type='admin')on Admin', email='admin@test.com', organization='Whatev
+>>> # use our set_password method
+>>> user.set_password('password')
+>>> # commit our new user record and log the user in
+>>> db.session.add(user)
+>>> db.session.commit() 
+```
+Checking the database...
 
 ## Future Work - Possible To Do List
 
